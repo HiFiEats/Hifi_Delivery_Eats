@@ -63,18 +63,16 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
-EMAIL_ADDRESS = "hifieats21@gmail.com"  # Replace with your Gmail address
-EMAIL_PASSWORD = "morz awdj fqgb srcv"  # Replace with your Gmail password
-
+EMAIL_ADDRESS = os.environ.get('EMAIL_ADDRESS')  # Replace with your Gmail address
+EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')  # Replace with your Gmail password
 # Configure Flask-Mail
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = 'hifieats21@gmail.com'  # Replace with your email
-app.config['MAIL_PASSWORD'] = 'morz awdj fqgb srcv'  # Replace with your email password
-app.config['MAIL_DEFAULT_SENDER'] = 'hifieats21@gmail.com'  # Replace with your email
-
+app.config['MAIL_USERNAME'] = EMAIL_ADDRESS  # Replace with your email
+app.config['MAIL_PASSWORD'] = EMAIL_PASSWORD  # Replace with your email password
+app.config['MAIL_DEFAULT_SENDER'] = EMAIL_ADDRESS  # Replace with your email
 mail = Mail(app)
 # Configuring OAuth
 
@@ -83,15 +81,14 @@ mail = Mail(app)
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
-    client_id='131047593159-l1ud0f5hs3e3pq39k6ko5kchka7pd07d.apps.googleusercontent.com',  # Your Google client ID
-    client_secret='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',  # Your Google client secret
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),  # Your Google client ID
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),  # Your Google client secret
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
         'scope': 'openid email profile',
         'token_endpoint_auth_method': 'client_secret_basic'
     }
 )
-
 
 facebook = oauth.register(
     name='facebook',
@@ -103,8 +100,10 @@ facebook = oauth.register(
     access_token_params=None,
     refresh_token_url=None,
     redirect_uri='http://127.0.0.1:5000/facebook/callback',  # Your redirect URI
-    client_kwargs={ 'scope': 'openid email profile', 'token_endpoint_auth_method': 'client_secret_basic', 'userinfo_endpoint': 'https://openidconnect.googleapis.com/v1/userinfo', 'jwks_uri': 'https://www.googleapis.com/oauth2/v3/certs'}
-
+    client_kwargs={
+        'scope': 'openid email profile',
+        'token_endpoint_auth_method': 'client_secret_basic'
+    }
 )
 
 twitter = oauth.register(
