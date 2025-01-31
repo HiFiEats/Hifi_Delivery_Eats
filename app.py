@@ -332,25 +332,29 @@ def signin():
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM Users WHERE email = ?', (email,))
         user = cursor.fetchone()
-        user_id = user['user_id']
         
-        if user and verify_password(password, user['password_hash']):
-            session['user_id'] = user['user_id']
-            session['user'] = user['email']  # Set the user email in session
-            session['is_admin'] = user['is_admin']
-            session['claimed_promotions'] = {} 
+        if user is not None:
+            user_id = user['user_id']
+            if user and verify_password(password, user['password_hash']):
+                session['user_id'] = user['user_id']
+                session['user'] = user['email']  # Set the user email in session
+                session['is_admin'] = user['is_admin']
+                session['claimed_promotions'] = {} 
 
-            conn.close()
-            flash('Sign in successful', 'success')
-            if user['is_admin']:
-                return redirect(url_for('dashboard'))
-            if user['is_delivery_boy']:
-                return redirect(url_for('delivery_agent_dashboard'))
+                conn.close()
+                flash('Sign in successful', 'success')
+                if user['is_admin']:
+                    return redirect(url_for('dashboard'))
+                if user['is_delivery_boy']:
+                    return redirect(url_for('delivery_agent_dashboard'))
+                else:
+                    return redirect(url_for('menu', user_id=user_id))  # Redirect to the dashboard route
             else:
-                return redirect(url_for('menu', user_id=user_id))  # Redirect to the dashboard route
+                conn.close()
+                flash('Invalid credentials', 'error')
+                return redirect(url_for('signin'))
         else:
-            conn.close()
-            flash('Invalid credentials', 'error')
+            flash('User not found!', 'error')
             return redirect(url_for('signin'))
     return render_template('signin.html')
 
@@ -4381,4 +4385,3 @@ if __name__ == '__main__':
 
 # if __name__ == '__main__':
 #     app.run(debug=True)
- 
