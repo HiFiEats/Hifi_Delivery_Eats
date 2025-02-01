@@ -2824,7 +2824,7 @@ def order_details(order_id):
                     # Updates Order table
                     conn.execute('UPDATE Orders SET order_status = ? WHERE order_id = ?',
                         ("Order Confirmed", order_id))
-                    conn.commit
+                    conn.commit()
                     
                     if send_order_confirmation_update(order['email'], order['full_name'], order_id, items, total):
                         return jsonify({'success': True, 'message': 'Status updated successfully and email update notification to user'})
