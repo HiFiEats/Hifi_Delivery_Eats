@@ -1398,8 +1398,16 @@ def get_db():
 
 @app.route("/feedback-analysis")
 def feedback_analysis():
-    analysis_results = generate_feedback_analysis('existing_database.db')
-    return render_template('feedback_visualization.html', **analysis_results)
+    db_path = 'existing_database.db'  # Update with your actual database path
+    analysis_results = generate_feedback_analysis(db_path)
+    
+    return render_template(
+        'feedback_visualization.html',
+        average_rating=analysis_results['average_rating'],
+        rating_plot_div=analysis_results['rating_plot_div'],
+        sentiment_plot_div=analysis_results['sentiment_plot_div'],
+        sentiment_pie_chart_path=analysis_results['sentiment_pie_chart_path']
+    )
 
 
 import sqlite3
@@ -1439,24 +1447,10 @@ def generate_feedback_analysis(db_path):
 
     # Plot sentiment distribution
     sentiment_distribution = go.Figure([go.Histogram(x=feedback_df['sentiment'], nbinsx=20)])
-    sentiment_distribution.update_layout(
-        title='Sentiment Distribution',
-        xaxis=dict(
-            title='Sentiment Polarity',
-            tickvals=[-1, 0, 1],
-            ticktext=['Negative', 'Neutral', 'Positive']
-        ),
-        yaxis_title='Count'
-    )
+    sentiment_distribution.update_layout(title='Sentiment Distribution', xaxis_title='Sentiment', yaxis_title='Count')
     sentiment_plot_div = pio.to_html(sentiment_distribution, full_html=False)
 
-    # Plot average sentiment per rating
-    avg_sentiment_per_rating = feedback_df.groupby('rating')['sentiment'].mean()
-    avg_sentiment_plot = go.Figure([go.Bar(x=avg_sentiment_per_rating.index, y=avg_sentiment_per_rating.values)])
-    avg_sentiment_plot.update_layout(title='Average Sentiment per Rating', xaxis_title='Rating', yaxis_title='Average Sentiment')
-    avg_sentiment_plot_div = pio.to_html(avg_sentiment_plot, full_html=False)
-
-    # Plot pie chart for sentiment categories using Plotly
+    # Plot sentiment pie chart
     sentiment_counts = feedback_df['sentiment_category'].value_counts()
     sentiment_pie_chart = go.Figure(data=[
         go.Pie(labels=sentiment_counts.index, values=sentiment_counts.values, 
@@ -1466,16 +1460,13 @@ def generate_feedback_analysis(db_path):
     sentiment_pie_chart.update_layout(title='Distribution of Sentiments in Feedback')
     sentiment_pie_chart_path = pio.to_html(sentiment_pie_chart, full_html=False)
 
-    # Display the pie chart using Streamlit
-    st.plotly_chart(sentiment_pie_chart)
-
     return {
         'average_rating': average_rating,
         'rating_plot_div': rating_plot_div,
         'sentiment_plot_div': sentiment_plot_div,
-        'avg_sentiment_plot_div': avg_sentiment_plot_div,
-        'sentiment_pie_chart_path': 'static/sentiment_pie_chart.png'
+        'sentiment_pie_chart_path': sentiment_pie_chart_path
     }
+
 
 
 
