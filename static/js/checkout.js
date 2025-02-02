@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const addressForm = document.getElementById('checkoutForm');  
     const newLocationInput = document.getElementById('delivery_location');
-    const defaultAddressDiv = document.getElementById('default_address');
     const validateButton = document.getElementById('validateButton');
     const orderNoteTextarea = document.getElementById('order-note');
     
@@ -21,22 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Run availability check on page load
     checkAvailability();
-
-    // Toggle address input based on radio selection
-    document.querySelectorAll('input[name="delivery_option"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'default') {
-                newLocationInput.style.display = 'none';
-                defaultAddressDiv.style.display = 'block';
-                validateButton.style.display = 'none';
-                newLocationInput.value = '';
-            } else {
-                newLocationInput.style.display = 'block';
-                defaultAddressDiv.style.display = 'none';
-                validateButton.style.display = 'inline-block';
-            }
-        });
-    });
 
     // Function to show errors
     function showError(message) {
@@ -90,22 +73,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const formData = new FormData(addressForm);
-            const deliveryOption = formData.get('delivery_option');
 
             // Log form data for debugging
-            console.log('Delivery Option:', deliveryOption);
             console.log('Form Data:', Object.fromEntries(formData.entries()));
             
-            // Validate delivery location for new address - silent mode
-            if (deliveryOption === 'new') {
-                const deliveryLocation = formData.get('delivery_location').trim();
-                if (!deliveryLocation) {
-                    showError('Please enter a delivery location');
-                    return;
-                }
-                if (!validateLocation(true)) {
-                    return;
-                }
+            // Validate delivery location
+            const deliveryLocation = formData.get('delivery_location').trim();
+            if (!deliveryLocation) {
+                showError('Please enter a delivery location');
+                return;
+            }
+            if (!validateLocation(true)) {
+                return;
             }
 
             // Add order note to form data

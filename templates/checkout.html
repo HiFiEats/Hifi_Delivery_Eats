@@ -1,4 +1,3 @@
-<!-- templates/checkout.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,28 +64,15 @@
                 <!-- Delivery Location -->
                 <div class="delivery-location">
                     <h2>Delivery Location</h2>
-                    <div class="radio-group">
-                        <label>
-                            <input type="radio" name="delivery_option" value="default" checked> 
-                            Default Address
-                        </label>
-                        <label>
-                            <input type="radio" name="delivery_option" value="new"> 
-                            Enter new location
-                        </label>
-                    </div>
                     <div class="location-input-group">
                         <input id="delivery_location" 
                                name="delivery_location"
                                type="text" 
                                placeholder="Enter a valid Delivery Location..." 
-                               style="display: none;">
-                        <button type="button" id="validateButton" style="display: none;">
+                               required>
+                        <button type="button" id="validateButton">
                             Validate
                         </button>
-                    </div>
-                    <div id="default_address">
-                        Current Address: {{ default_address }}
                     </div>
                 </div>
 

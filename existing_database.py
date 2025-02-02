@@ -168,15 +168,7 @@ cursor.executescript('''
         ('admin', 'Administrator role'),
         ('delivery_boy', 'Delivery Boy role'),
         ('user', 'Regular user role');
-
-    -- Users
-    INSERT OR IGNORE INTO Users (email, password_hash, full_name, phone_number, role_id) VALUES
-    ('sanjsanj3114@gmail.com', 'Sanjay@3114', 'John Doe', '+1234567890', 1),
-    ('jane@email.com', 'hash2', 'Jane Smith', '+1234567891',  1),
-    ('alice@email.com', 'hash4', 'Alice Brown', '+1234567893', 1),
-    ('bob@email.com', 'hash5', 'Bob White', '+1234567894', 1),
-    ('smith@email.com', 'hash6', 'Smith Doe', '+1234567895', 1);
-
+                     
     -- Categories
     INSERT OR IGNORE INTO Category (CategoryID, CategoryName, Description) VALUES
     (1, 'Main Course', 'Primary dishes'),
@@ -204,13 +196,6 @@ cursor.executescript('''
     (2, 1),
     (3, 3),
     (4, 2);
-
-    -- Delivery Agents
-    INSERT OR IGNORE INTO Delivery_agents (id, name, status) VALUES
-    (1,'John Doe', 'in delivery'),
-    (4,'Alice Brown', 'available'),
-    (5,'Bob White', 'in delivery'),
-    (6,'Smith Doe', 'available');
 
     INSERT INTO Order_Note (Order_ID, User_ID, Description) VALUES 
     (1, 1, 'Order processed, awaiting shipment'),
@@ -426,5 +411,5 @@ VALUES (?, ?, ?, ?, ?);''',(order_id, 3, 'Assigned', None , None))
 conn.commit()
 conn.close()
 
-print(f"Database has been created and populated with {order_count} orders!")
+print(f"Database has been created and populated with orders!")
 

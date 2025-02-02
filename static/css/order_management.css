@@ -1,5 +1,5 @@
 .header {
-    background-color: #d3b18c;
+    background-color: #FFD3D3;
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -30,7 +30,7 @@
 
 .orders-container {
     flex: 1;
-    background-color: #f8d0b8;
+    background-color: #FFD3D3;
     padding: 20px;
     border-radius: 8px;
     overflow-x: auto;
@@ -53,7 +53,7 @@
 }
 
 .order-table th {
-    background-color: #f7dcbf;
+    background-color: #FFD3D3;
     color: #36241a;
     font-weight: bold;
 }
@@ -101,7 +101,7 @@
 
 .filters {
     width: 250px;
-    background-color: #f8d0b8;
+    background-color: #FFD3D3;
     padding: 20px;
     border-radius: 8px;
 }

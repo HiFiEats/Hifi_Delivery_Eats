@@ -36,6 +36,8 @@ import plotly.io as pio
 from functools import wraps
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+import joblib
+import numpy as np
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -250,8 +252,8 @@ def signup():
             return redirect(url_for('signup'))
         
         hashed_password = hash_password(password)
-        cursor.execute('INSERT INTO Users (email, password_hash, full_name, phone_number, is_active) VALUES (?, ?, ?, ?, ?)',
-                       (email, hashed_password, full_name, phone_number, 0))  # Initially inactive
+        cursor.execute('INSERT INTO Users (email, password_hash, full_name, phone_number, is_active, is_delivery_boy, is_admin) VALUES (?, ?, ?, ?, ?)',
+                       (email, hashed_password, full_name, phone_number, 0, 0, 0))  # Initially inactive
         conn.commit()
 
         # Send confirmation email
@@ -321,42 +323,41 @@ PROMOTIONS = {
         }
     ]
 }
-# Route for sign-in page
+
 @app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'POST':
         email = request.form['phone-email']
         password = request.form['password']
-        
+
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM Users WHERE email = ?', (email,))
+        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
         user = cursor.fetchone()
         
-        if user is not None:
-            user_id = user['user_id']
-            if user and verify_password(password, user['password_hash']):
-                session['user_id'] = user['user_id']
-                session['user'] = user['email']  # Set the user email in session
-                session['is_admin'] = user['is_admin']
-                session['claimed_promotions'] = {} 
+        if user and verify_password(password, user['password_hash']):
+            session.permanent = True  # Set session as permanent
+            session['user_id'] = user['user_id']
+            session['user'] = user['email']  # Set the user email in session
+            session['is_admin'] = user['is_admin']
+            session['claimed_promotions'] = {}
 
-                conn.close()
-                flash('Sign in successful', 'success')
-                if user['is_admin']:
-                    return redirect(url_for('dashboard'))
-                if user['is_delivery_boy']:
-                    return redirect(url_for('delivery_agent_dashboard'))
-                else:
-                    return redirect(url_for('menu', user_id=user_id))  # Redirect to the dashboard route
+            conn.close()
+            flash('Sign in successful', 'success')
+            if user['is_admin']:
+                return redirect(url_for('admin_dashboard'))
+            elif user['is_delivery_boy']:
+                return redirect(url_for('delivery_dashboard'))
             else:
-                conn.close()
-                flash('Invalid credentials', 'error')
-                return redirect(url_for('signin'))
+                return redirect(url_for('menu', user_id=user['user_id']))
+  # Redirect to the promotions page
         else:
-            flash('User not found!', 'error')
+            conn.close()
+            flash('Invalid credentials', 'error')
             return redirect(url_for('signin'))
+
     return render_template('signin.html')
+
 
 # Decorator to check if the user is logged in
 def login_required(f):
@@ -380,36 +381,18 @@ def get_active_promotions(user_id):
     ]
     return active_promotions
 
-@app.route('/dashboard')
+@app.route('/promotions')
 @login_required
-def dashboard():
-    if 'user' in session:  # Checking if the user is logged in
-        user_email = session['user']
-        
-        # If the user is an admin, redirect to the admin dashboard
-        if session.get('is_admin'):
-            print("Admin user detected, redirecting to admin dashboard")
-            return redirect(url_for('admin_dashboard'))  # Redirect to the admin dashboard if the user is an admin
-        
-        # If the user is a regular user, proceed to display the user dashboard
-        print("Regular user detected, rendering user dashboard")
+def promotions():
+    user_id = session['user_id']
     conn = get_db()
     cursor = conn.cursor()
-    
-    # Get user details
-    cursor.execute('SELECT * FROM Users WHERE user_id = ?', (session['user_id'],))
+    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
     user = cursor.fetchone()
-    
-    # Get active promotions
-    active_promotions = get_active_promotions(session['user_id'])
-    
-    # Get user's recent orders
-    cursor.execute('''SELECT * FROM Orders WHERE customer_id = ? ORDER BY order_date DESC LIMIT 5''', (session['user_id'],))
-    recent_orders = cursor.fetchall()
-    
     conn.close()
-    
-    return render_template('dashboard.html', user=user, promotions=active_promotions, recent_orders=recent_orders)
+    active_promotions = get_active_promotions(user_id)
+    claimed_promotions = session.get('claimed_promotions', {})
+    return render_template('promotions.html', user=user, promotions=active_promotions, claimed_promotions=claimed_promotions)
 
 @app.route('/claim_promotion/<int:promotion_id>')
 @login_required
@@ -421,35 +404,27 @@ def claim_promotion(promotion_id):
     user_email = session['user']
     claimed_promos = session.get('claimed_promotions', {})
     
-    # Find the promotion
-    promotion = next(
-        (p for p in PROMOTIONS['offers'] if p['id'] == promotion_id), 
-        None
-    )
+    promotion = next((p for p in PROMOTIONS['offers'] if p['id'] == promotion_id), None)
     
     if not promotion:
         flash('Promotion not found', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('promotions'))
     
-    # Check if already claimed
     if str(promotion_id) in claimed_promos:
         flash('You have already claimed this promotion', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('promotions'))
     
-    # Check if promotion is valid
     current_date = datetime.now().strftime('%Y-%m-%d')
     if not (promotion['valid_from'] <= current_date <= promotion['valid_until']):
         flash('This promotion has expired', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('promotions'))
     
-    # Store the claimed promotion in session
     claimed_promos[str(promotion_id)] = {
         'claimed_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'used': False
     }
     session['claimed_promotions'] = claimed_promos
     
-    # Send email notification
     try:
         msg = Message(
             f"Your Claimed Promotion: {promotion['title']}",
@@ -490,8 +465,7 @@ def claim_promotion(promotion_id):
         print(f"Error sending email: {e}")
         flash('Promotion claimed but there was an error sending the email. Please contact support.', 'warning')
     
-    return render_template('dashboard.html', promotions=get_active_promotions(session['user_id']))
-
+    return redirect(url_for('promotions'))
 
 
 @app.route('/assign_role/<int:user_id>', methods=['GET', 'POST'])
@@ -955,98 +929,6 @@ def logout():
     flash('You have been logged out.')
     return redirect(url_for('signin'))
 
-@app.route('/anomalies')
-def anomalies():
-    return render_template('anomalies.html')
-
-# Mock data to simulate orders
-mock_orders = [
-    {
-        "order_id": 1,
-        "customer_id": 101,
-        "customer_email": "user1@example.com",
-        "order_date": (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'),
-    },
-    {
-        "order_id": 2,
-        "customer_id": 102,
-        "customer_email": "user2@example.com",
-        "total_price": 3500.00,  # Anomaly: High price
-        "order_status": "processing",
-        "delivery_location": "456 Oak St, City",
-        "order_date": datetime.now().strftime('%Y-%m-%d'),
-        "order_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-]
-
-@app.route('/api/order-anomalies', methods=['GET'])
-def get_order_anomalies():
-    mock_orders = [
-        # Example mock orders
-        {'order_id': 1, 'total_price': 100},
-        {'order_id': 2, 'total_price': 200},
-        # Add more mock orders as needed
-    ]
-    
-    try:
-        avg_price = sum(order['total_price'] for order in mock_orders if 'total_price' in order) / len(mock_orders)
-    except ZeroDivisionError:
-        avg_price = 0  # Handle case where mock_orders is empty
-
-    return jsonify({'average_price': avg_price})
-
-@app.route('/api/add-test-order')
-def add_test_order():
-    new_order = {
-        "order_id": len(mock_orders) + 1,
-        "customer_id": random.randint(101, 105),
-        "customer_email": f"user{random.randint(1,5)}@example.com",
-        "total_price": random.uniform(100, 5000),
-        "order_status": random.choice(["pending", "processing", "completed"]),
-        "delivery_location": f"{random.randint(100,999)} Test St, City",
-        "order_date": datetime.now().strftime('%Y-%m-%d'),
-        "order_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    mock_orders.append(new_order)
-    return jsonify({"message": "Test order added", "order": new_order})
-
-@app.route('/api/investigate-order/<int:order_id>', methods=['POST'])
-def investigate_order(order_id):
-    for order in mock_orders:
-        if order['order_id'] == order_id:
-            order['order_status'] = 'Under Investigation'
-            return jsonify({
-                'success': True,
-                'message': f'Order #{order_id} is now under investigation',
-                'order': order
-            })
-    
-    return jsonify({
-        'success': False,
-        'message': f'Order #{order_id} not found'
-    }), 404
-
-@app.route('/api/complete-investigation/<int:order_id>', methods=['POST'])
-def complete_investigation(order_id):
-    for order in mock_orders:
-        if order['order_id'] == order_id:
-            action = request.json.get('action', 'approved')  # 'approved' or 'flagged'
-            order['order_status'] = f'Investigation {action}'
-            order['investigation_notes'] = request.json.get('notes', '')
-            order['investigation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            return jsonify({
-                'success': True,
-                'message': f'Order #{order_id} investigation completed: {action}',
-                'order': order
-            })
-    
-    return jsonify({
-        'success': False,
-        'message': f'Order #{order_id} not found'
-    }), 404
-
-
 @app.route('/sales_trends', methods=['GET', 'POST'])
 def sales_trends():
     if request.method == 'POST':
@@ -1450,7 +1332,13 @@ def generate_feedback_analysis(db_path):
     sentiment_distribution.update_layout(title='Sentiment Distribution', xaxis_title='Sentiment', yaxis_title='Count')
     sentiment_plot_div = pio.to_html(sentiment_distribution, full_html=False)
 
-    # Plot sentiment pie chart
+    # Plot average sentiment per rating
+    avg_sentiment_per_rating = feedback_df.groupby('rating')['sentiment'].mean()
+    avg_sentiment_plot = go.Figure([go.Bar(x=avg_sentiment_per_rating.index, y=avg_sentiment_per_rating.values)])
+    avg_sentiment_plot.update_layout(title='Average Sentiment per Rating', xaxis_title='Rating', yaxis_title='Average Sentiment')
+    avg_sentiment_plot_div = pio.to_html(avg_sentiment_plot, full_html=False)
+
+    # Plot pie chart for sentiment categories using Plotly
     sentiment_counts = feedback_df['sentiment_category'].value_counts()
     sentiment_pie_chart = go.Figure(data=[
         go.Pie(labels=sentiment_counts.index, values=sentiment_counts.values, 
@@ -1460,14 +1348,15 @@ def generate_feedback_analysis(db_path):
     sentiment_pie_chart.update_layout(title='Distribution of Sentiments in Feedback')
     sentiment_pie_chart_path = pio.to_html(sentiment_pie_chart, full_html=False)
 
+    # Display the pie chart using Streamlit
+    st.plotly_chart(sentiment_pie_chart)
+
     return {
         'average_rating': average_rating,
         'rating_plot_div': rating_plot_div,
         'sentiment_plot_div': sentiment_plot_div,
         'sentiment_pie_chart_path': sentiment_pie_chart_path
     }
-
-
 
 
 def fetch_customer_data():
@@ -1694,141 +1583,141 @@ def generate_revenue_bar_chart(months, gains, losses):
     
     return img_buffer
 
-# # Function to analyze sentiment
-# def analyze_sentiment(comment):
-#     analysis = TextBlob(comment)
-#     return analysis.sentiment.polarity  # Returns a value between -1 (negative) and 1 (positive)
+# Path to save the trained model
+MODEL_PATH = 'feedback_anomaly_model.pkl'
 
-# # Function to detect anomalies using ML
-# def detect_feedback_anomalies_ml():
-#     conn = get_db()
-#     cursor = conn.cursor()
+# Function to create the database and feedback table
+def create_database():
+    conn = sqlite3.connect('existing_database.db')
+    cursor = conn.cursor()
 
-#     # Fetch feedback data
-#     cursor.execute('''
-#         SELECT 
-#             feedback.feedback_id, 
-#             feedback.order_id, 
-#             feedback.customer_id, 
-#             feedback.rating, 
-#             feedback.comment, 
-#             orders.total_price, 
-#             orders.delivery_location, 
-#             orders.order_time
-#         FROM feedback
-#         JOIN orders ON feedback.order_id = orders.order_id
-#     ''')
-#     feedback_data = cursor.fetchall()
+    # Create the feedback table if it doesn't exist
+    cursor.execute(''' 
+        CREATE TABLE IF NOT EXISTS feedback (
+            feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            customer_id INTEGER NOT NULL,
+            rating INTEGER NOT NULL,
+            comment TEXT
+        )
+    ''')
 
-#     # Prepare data for ML
-#     features = []
-#     feedback_list = []
-#     for row in feedback_data:
-#         sentiment_score = analyze_sentiment(row['comment'])
-#         features.append([row['rating'], sentiment_score])
-#         feedback_list.append({
-#             "feedback_id": row["feedback_id"],
-#             "order_id": row["order_id"],
-#             "customer_id": row["customer_id"],
-#             "rating": row["rating"],
-#             "comment": row["comment"],
-#             "total_price": row["total_price"],
-#             "delivery_location": row["delivery_location"],
-#             "order_time": row["order_time"],
-#             "sentiment_score": sentiment_score
-#         })
+    conn.commit()
+    conn.close()
 
-#     # Normalize data
-#     scaler = StandardScaler()
-#     features = scaler.fit_transform(features)
+# Function to analyze sentiment and classify food vs. service issues, including new scenarios
+def analyze_sentiment(comment):
+    food_sentiment = 0
+    service_sentiment = 0
+    order_issues = 0
+    experience_sentiment = 0
+    
+    if not comment:
+        return food_sentiment, service_sentiment, order_issues, experience_sentiment
 
-#     # Apply K-Means clustering
-#     kmeans = KMeans(n_clusters=2, random_state=42)  # Assume 2 clusters (normal and anomalous)
-#     labels = kmeans.fit_predict(features)
+    # Analyze the food sentiment
+    if "good" in comment.lower() or "excellent" in comment.lower() or "tasty" in comment.lower() or "delicious" in comment.lower():
+        food_sentiment = 1  # Positive sentiment about food
+    elif "bad" in comment.lower() or "poor" in comment.lower() or "bland" in comment.lower():
+        food_sentiment = -1  # Negative sentiment about food
 
-#     # Mark anomalies based on clustering
-#     anomalies = []
-#     for i, label in enumerate(labels):
-#         if label == 1:  # Assuming label 1 indicates anomalies
-#             anomalies.append(feedback_list[i])
+    # Analyze the service sentiment (delivery)
+    if "late" in comment.lower() or "delay" in comment.lower():
+        service_sentiment = -1  # Negative sentiment about delivery service
+    elif "fast" in comment.lower() or "on time" in comment.lower() or "quick" in comment.lower():
+        service_sentiment = 1  # Positive sentiment about delivery service
 
-#     return anomalies
+    # Detect order issues like cancellation
+    if "cancelled" in comment.lower() or "no notice" in comment.lower():
+        order_issues = 1  # Indicates an issue with order cancellation
 
-# @app.route('/feedback_form', methods=['GET'])
-# def feedback_anomalies():
-#     try:
-#         # Fetch feedback data
-#         anomalies = detect_feedback_anomalies_ml()  # Detect anomalies using ML
-#         return jsonify({"success": True, "anomalies": anomalies}), 200  # Return anomalies
-#     except Exception as e:
-#         return jsonify({"success": False, "message": str(e)}), 500
+    # Detect average experience or neutral feedback
+    if "average experience" in comment.lower() or "okay" in comment.lower() or "mediocre" in comment.lower():
+        experience_sentiment = 0  # Neutral experience
+    elif "good" in comment.lower() or "great" in comment.lower() or "satisfied" in comment.lower():
+        experience_sentiment = 1  # Positive experience
+    elif "bad" in comment.lower() or "poor" in comment.lower() or "dissatisfied" in comment.lower():
+        experience_sentiment = -1  # Negative experience
 
+    # Return sentiment scores for food, service, order issues, and overall experience
+    return food_sentiment, service_sentiment, order_issues, experience_sentiment
 
-# @app.route('/')
-# def anoma():
-#     return render_template('anomalies.html')
-
-# Function to detect anomalies using ML
+# Function to fetch feedback data, group by customer, and detect anomalies
 def detect_feedback_anomalies_ml():
-    conn = get_db()
+    conn = sqlite3.connect('existing_database.db')
     cursor = conn.cursor()
 
     try:
-        # Fetch feedback data
+        # Fetch feedback data grouped by customer_id
         cursor.execute(''' 
-            SELECT 
-                feedback.feedback_id, 
-                feedback.order_id, 
-                feedback.customer_id, 
-                feedback.rating, 
-                feedback.comment, 
-                orders.total_price, 
-                orders.delivery_location, 
-                orders.order_time
+            SELECT feedback_id, order_id, customer_id, rating, comment 
             FROM feedback
-            JOIN orders ON feedback.order_id = orders.order_id
         ''')
         feedback_data = cursor.fetchall()
 
-        # Prepare data for ML
+        # Group feedback by customer_id
+        grouped_feedback = {}
+        for row in feedback_data:
+            customer_id = row[2]
+            if customer_id not in grouped_feedback:
+                grouped_feedback[customer_id] = []
+            grouped_feedback[customer_id].append({
+                "feedback_id": row[0],
+                "order_id": row[1],
+                "customer_id":customer_id,
+                "rating": row[3],
+                "comment": row[4]
+            })
+
+        # Prepare data for ML (features will be rating and sentiment score)
         features = []
         feedback_list = []
-        for row in feedback_data:
-            sentiment_score = TextBlob(row['comment']).sentiment.polarity
-            features.append([row['rating'], sentiment_score])
-            feedback_list.append({
-                "feedback_id": row["feedback_id"],
-                "order_id": row["order_id"],
-                "customer_id": row["customer_id"],
-                "rating": row["rating"],
-                "comment": row["comment"],
-                "total_price": row["total_price"],
-                "delivery_location": row["delivery_location"],
-                "order_time": row["order_time"],
-                "sentiment_score": sentiment_score
-            })
+        for customer_id, feedbacks in grouped_feedback.items():
+            for feedback in feedbacks:
+                food_sentiment, service_sentiment, order_issues, experience_sentiment = analyze_sentiment(feedback["comment"])  # Analyze sentiment
+                features.append([feedback["rating"], food_sentiment, service_sentiment, order_issues, experience_sentiment])
+                feedback["food_sentiment"] = food_sentiment
+                feedback["service_sentiment"] = service_sentiment
+                feedback["order_issues"] = order_issues
+                feedback["experience_sentiment"] = experience_sentiment
+                feedback_list.append(feedback)
+
+        if not features:
+            return []
 
         # Normalize data
         scaler = StandardScaler()
         features = scaler.fit_transform(features)
 
         # Apply K-Means clustering
-        kmeans = KMeans(n_clusters=2, random_state=42)  # Assume 2 clusters (normal and anomalous)
+        kmeans = KMeans(n_clusters=2, random_state=42)
         labels = kmeans.fit_predict(features)
 
-        # Mark anomalies based on clustering and sentiment analysis
+        # Save the trained model
+        if not os.path.exists(MODEL_PATH):
+            joblib.dump(kmeans, MODEL_PATH)
+            joblib.dump(scaler, 'scaler.pkl')
+
+        # Mark anomalies based on clustering
         anomalies = []
         for i, label in enumerate(labels):
-            if label == 1:  # Assuming label 1 indicates anomalies
+            if label == 1:  # Assuming 1 indicates anomalies
                 anomaly = feedback_list[i]
-                # Classify anomaly type based on sentiment and rating
                 anomaly_type = "Unknown"
-                if anomaly["rating"] <= 2 and anomaly["sentiment_score"] < 0:
-                    anomaly_type = "Poor Quality or Service"  # Poor rating + Negative sentiment
-                elif anomaly["sentiment_score"] < 0:
-                    anomaly_type = "Negative Sentiment"
+                
+                # Identify anomaly based on rating, sentiment, order issues, and experience
+                if anomaly["rating"] <= 2 and anomaly["service_sentiment"] < 0:
+                    anomaly_type = "Service Issue (Late Delivery)"
+                elif anomaly["service_sentiment"] < 0:
+                    anomaly_type = "Negative Sentiment (Service)"
+                elif anomaly["food_sentiment"] < 0:
+                    anomaly_type = "Poor Food Quality"
                 elif anomaly["rating"] <= 2:
                     anomaly_type = "Low Rating"
+                elif anomaly["order_issues"] == 1:
+                    anomaly_type = "Order Cancellation Issue"
+                elif anomaly["experience_sentiment"] == 0:
+                    anomaly_type = "Average Experience"
 
                 anomaly["anomaly_type"] = anomaly_type
                 anomalies.append(anomaly)
@@ -1836,21 +1725,34 @@ def detect_feedback_anomalies_ml():
         return anomalies
 
     except Exception as e:
-        print(f"Error occurred during anomaly detection: {e}")
-        raise e
+        print(f"Error: {e}")
+        return []
+    finally:
+        conn.close()
 
-# Flask route to display anomalies on anomalies.html
-@app.route('/anomalies', methods=['GET'])
+# Flask route to display anomalies
+@app.route('/anomalies')
 def show_anomalies():
-    try:
-        # Fetch anomalies using the machine learning detection function
-        anomalies = detect_feedback_anomalies_ml()
+    anomalies = detect_feedback_anomalies_ml()
 
-        # Return JSON data for frontend
-        return jsonify({"anomalies": anomalies})
+    # Prepare the anomalies for display in a table
+    anomaly_data = []
+    for anomaly in anomalies:
+        anomaly_data.append({
+            "feedback_id": anomaly["feedback_id"],
+            "order_id": anomaly["order_id"],
+            "customer_id": anomaly["customer_id"],
+            "rating": anomaly["rating"],
+            "comment": anomaly["comment"],
+            "food_sentiment": anomaly["food_sentiment"],
+            "service_sentiment": anomaly["service_sentiment"],
+            "order_issues": anomaly["order_issues"],
+            "experience_sentiment": anomaly["experience_sentiment"],
+            "anomaly_type": anomaly["anomaly_type"]
+        })
 
-    except Exception as e:
-        return jsonify({"error": "Error occurred while fetching anomalies", "message": str(e)}), 500
+    return render_template('anomalies.html', anomalies=anomaly_data)
+
 
 from flask import Flask, request, jsonify, render_template, send_file
 from flask_mail import Mail,Message
@@ -2656,7 +2558,7 @@ def order_details(order_id):
     
     # Get order details with customer information
     order = conn.execute('''
-        SELECT Orders.*, Users.full_name, Users.email, Users.phone_number, Users.delivery_address
+        SELECT Orders.*, Users.full_name, Users.email, Users.phone_number, Orders.delivery_location
         FROM Orders 
         JOIN Users ON Orders.customer_id = Users.user_id 
         WHERE order_id = ?
@@ -2816,6 +2718,7 @@ def order_details(order_id):
                     return jsonify({'success': True, 'message': 'Status updated successfully'})
                     
                 elif new_status == 'order_confirmed':
+                    print('yes')
                     if existing_status == 'Completed':
                         return jsonify({'success': False, 'message': "Unable to update status as the order has already been delivered."})
 
@@ -3659,12 +3562,6 @@ def render_checkout(user_id):
         delivery_fee = 5.00
         total_price = round(sub_total + tax_amount + delivery_fee, 2)
 
-        # Fetch default address
-        default_address = conn.execute('''
-            SELECT delivery_address FROM Users WHERE user_id = ?
-        ''', (user_id,)).fetchone()
-        default_address = default_address['delivery_address'] if default_address else "No default address found"
-
         # Check for unavailable items
         unavailable_items = [item['name'] for item in cart_items if item['availability'] == 0]
         message = ""
@@ -3674,19 +3571,15 @@ def render_checkout(user_id):
         if request.method == 'POST':
             try:
                 # Get form data
-                delivery_option = request.form.get('delivery_option')
-                delivery_location = (
-                    default_address if delivery_option == 'default' 
-                    else request.form.get('delivery_location', '').strip()
-                )
+                delivery_location = request.form.get('delivery_location', '').strip()
                 order_note = request.form.get('order_note')
                 if order_note == "EMPTY":
-                    order_note=None
+                    order_note = None
 
                 print(f"Received POST data: {request.form}")  # Debug print
 
                 # Validate delivery location
-                if delivery_option != 'default' and not delivery_location:
+                if not delivery_location:
                     raise ValueError("Please enter a valid delivery location.")
 
                 # Create new order
@@ -3735,7 +3628,6 @@ def render_checkout(user_id):
                                     tax_amount=tax_amount,
                                     delivery_fee=delivery_fee,
                                     total_price=total_price,
-                                    default_address=default_address,
                                     user_id=user_id,
                                     order_id=order_id)
 
@@ -3749,7 +3641,6 @@ def render_checkout(user_id):
                             tax_amount=tax_amount,
                             delivery_fee=delivery_fee,
                             total_price=total_price,
-                            default_address=default_address,
                             user_id=user_id,
                             order_id=order_id)
 
@@ -4373,6 +4264,3 @@ def initialize_delivery_system(app):
 if __name__ == '__main__':
     initialize_delivery_system(app)
     app.run(debug=True)
-
-# if __name__ == '__main__':
-#     app.run(debug=True)
