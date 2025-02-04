@@ -22,15 +22,17 @@
     
         function generateReport(graphType) {
             const dateRange = document.getElementById('date-range').value;
-            if (!dateRange) {
+            const month = document.getElementById('month').value;
+            if (!dateRange && !month) {
                 alert('Please select a date first!');
                 return;
             }
+            const reportDate = dateRange || (month ? month : '');
             const report = {
                 type: graphType,
-                dateRange: dateRange,
+                dateRange: reportDate,
                 timestamp: new Date().toLocaleString(),
-                content: `Report Type: ${graphType}\nDate Range: ${dateRange}\nGenerated On: ${new Date().toLocaleString()}`
+                content: `Report Type: ${graphType}\nDate Range: ${reportDate}\nGenerated On: ${new Date().toLocaleString()}`
             };
             recentReports.push(report);
             updateRecentReports();
