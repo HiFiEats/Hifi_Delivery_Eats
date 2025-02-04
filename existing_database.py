@@ -15,151 +15,151 @@ def hash_password(password):
 conn = sqlite3.connect('existing_database.db')
 cursor = conn.cursor()
 
-# Create tables
-cursor.executescript('''
-    CREATE TABLE IF NOT EXISTS roles (
-        role_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        role_name TEXT NOT NULL UNIQUE,
-        role_description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+# # Create tables
+# cursor.executescript('''
+#     CREATE TABLE IF NOT EXISTS roles (
+#         role_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         role_name TEXT NOT NULL UNIQUE,
+#         role_description TEXT,
+#         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+#     );
 
-    CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        full_name TEXT,
-        phone_number TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP,
-        is_active BOOLEAN DEFAULT TRUE,
-        is_admin INTEGER DEFAULT 0,
-        is_delivery_boy INTEGER DEFAULT 0,
-        role_id INTEGER,
-        FOREIGN KEY(role_id) REFERENCES roles(role_id)
-    );
+#     CREATE TABLE IF NOT EXISTS users (
+#         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         email TEXT UNIQUE NOT NULL,
+#         password_hash TEXT NOT NULL,
+#         full_name TEXT,
+#         phone_number TEXT,
+#         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#         last_login TIMESTAMP,
+#         is_active BOOLEAN DEFAULT TRUE,
+#         is_admin INTEGER DEFAULT 0,
+#         is_delivery_boy INTEGER DEFAULT 0,
+#         role_id INTEGER,
+#         FOREIGN KEY(role_id) REFERENCES roles(role_id)
+#     );
                      
-    CREATE TABLE IF NOT EXISTS email_verifications (
-        verification_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        verification_token TEXT,
-        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        verified_at TIMESTAMP,
-        status TEXT CHECK(status IN ('Pending', 'Verified')) DEFAULT 'Pending',
-        FOREIGN KEY(user_id) REFERENCES users(user_id)
-    );
+#     CREATE TABLE IF NOT EXISTS email_verifications (
+#         verification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         user_id INTEGER,
+#         verification_token TEXT,
+#         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#         verified_at TIMESTAMP,
+#         status TEXT CHECK(status IN ('Pending', 'Verified')) DEFAULT 'Pending',
+#         FOREIGN KEY(user_id) REFERENCES users(user_id)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Category (
-        CategoryID INTEGER PRIMARY KEY,
-        CategoryName TEXT NOT NULL,
-        Description TEXT,
-        CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+#     CREATE TABLE IF NOT EXISTS Category (
+#         CategoryID INTEGER PRIMARY KEY,
+#         CategoryName TEXT NOT NULL,
+#         Description TEXT,
+#         CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+#         ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP
+#     );
                 
-        CREATE TABLE IF NOT EXISTS DietaryPreferences (
-        PreferenceID INTEGER PRIMARY KEY,
-        PreferenceName TEXT NOT NULL,
-        Description TEXT,
-        CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+#         CREATE TABLE IF NOT EXISTS DietaryPreferences (
+#         PreferenceID INTEGER PRIMARY KEY,
+#         PreferenceName TEXT NOT NULL,
+#         Description TEXT,
+#         CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+#         ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP
+#     );
 
-    CREATE TABLE IF NOT EXISTS MenuItems (
-        MenuItemID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Name TEXT NOT NULL,
-        Description TEXT,
-        Price DECIMAL(10, 2) NOT NULL,
-        CategoryID INTEGER,
-        AvailabilityStatus BOOLEAN DEFAULT 1,
-        ImageURL TEXT,
-        CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (CategoryID) REFERENCES Category(CategoryID)
-    );
+#     CREATE TABLE IF NOT EXISTS MenuItems (
+#         MenuItemID INTEGER PRIMARY KEY AUTOINCREMENT,
+#         Name TEXT NOT NULL,
+#         Description TEXT,
+#         Price DECIMAL(10, 2) NOT NULL,
+#         CategoryID INTEGER,
+#         AvailabilityStatus BOOLEAN DEFAULT 1,
+#         ImageURL TEXT,
+#         CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+#         ModifiedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+#         FOREIGN KEY (CategoryID) REFERENCES Category(CategoryID)
+#     );
 
-    CREATE TABLE IF NOT EXISTS MenuItemDietaryPreferences (
-        MenuItemID INTEGER PRIMARY KEY,
-        PreferenceID INTEGER,
-        FOREIGN KEY (MenuItemID) REFERENCES MenuItems(MenuItemID)
-    );
+#     CREATE TABLE IF NOT EXISTS MenuItemDietaryPreferences (
+#         MenuItemID INTEGER PRIMARY KEY,
+#         PreferenceID INTEGER,
+#         FOREIGN KEY (MenuItemID) REFERENCES MenuItems(MenuItemID)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Orders (
-        order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        customer_id INTEGER,
-        total_price DECIMAL(10, 2) NOT NULL,
-        order_status VARCHAR(50) NOT NULL,
-        delivery_location VARCHAR(255) NOT NULL,
-        order_date DATE DEFAULT CURRENT_DATE,
-        order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (customer_id) REFERENCES Users(user_id)
-    );
+#     CREATE TABLE IF NOT EXISTS Orders (
+#         order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         customer_id INTEGER,
+#         total_price DECIMAL(10, 2) NOT NULL,
+#         order_status VARCHAR(50) NOT NULL,
+#         delivery_location VARCHAR(255) NOT NULL,
+#         order_date DATE DEFAULT CURRENT_DATE,
+#         order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+#         FOREIGN KEY (customer_id) REFERENCES Users(user_id)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Order_Items (
-        order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER,
-        item_id INTEGER,
-        quantity INTEGER NOT NULL,
-        price DECIMAL(10, 2) NOT NULL,
-        FOREIGN KEY (order_id) REFERENCES Orders(order_id),
-        FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
-    );
+#     CREATE TABLE IF NOT EXISTS Order_Items (
+#         order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         order_id INTEGER,
+#         item_id INTEGER,
+#         quantity INTEGER NOT NULL,
+#         price DECIMAL(10, 2) NOT NULL,
+#         FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+#         FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Cart (
-        cart_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        customer_id INTEGER,
-        item_id INTEGER,
-        quantity INTEGER NOT NULL,
-        price DECIMAL(10, 2) NOT NULL,
-        FOREIGN KEY (customer_id) REFERENCES Users(user_id),
-        FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
-    );
+#     CREATE TABLE IF NOT EXISTS Cart (
+#         cart_id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         customer_id INTEGER,
+#         item_id INTEGER,
+#         quantity INTEGER NOT NULL,
+#         price DECIMAL(10, 2) NOT NULL,
+#         FOREIGN KEY (customer_id) REFERENCES Users(user_id),
+#         FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Delivery_agents (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        status TEXT NOT NULL,
-        FOREIGN KEY (id) REFERENCES Users(user_id),
-        FOREIGN KEY (name) REFERENCES Users(full_name)
-    );
+#     CREATE TABLE IF NOT EXISTS Delivery_agents (
+#         id INTEGER PRIMARY KEY,
+#         name TEXT NOT NULL,
+#         status TEXT NOT NULL,
+#         FOREIGN KEY (id) REFERENCES Users(user_id),
+#         FOREIGN KEY (name) REFERENCES Users(full_name)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Delivery (
-        Delivery_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Order_ID INTEGER,
-        Delivery_Agent_ID INTEGER,
-        Status VARCHAR(50) NOT NULL,
-        Pickup_time TIMESTAMP,
-        Delivery_time TIMESTAMP,
-        FOREIGN KEY (Order_ID) REFERENCES Orders(order_id),
-        FOREIGN KEY (Delivery_Agent_ID) REFERENCES Delivery_agents(id)
-    );
+#     CREATE TABLE IF NOT EXISTS Delivery (
+#         Delivery_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+#         Order_ID INTEGER,
+#         Delivery_Agent_ID INTEGER,
+#         Status VARCHAR(50) NOT NULL,
+#         Pickup_time TIMESTAMP,
+#         Delivery_time TIMESTAMP,
+#         FOREIGN KEY (Order_ID) REFERENCES Orders(order_id),
+#         FOREIGN KEY (Delivery_Agent_ID) REFERENCES Delivery_agents(id)
+#     );
 
-    CREATE TABLE IF NOT EXISTS Issues (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER,
-        issue_type TEXT NOT NULL,
-        description TEXT,
-        FOREIGN KEY (order_id) REFERENCES Orders(order_id)
-    );
+#     CREATE TABLE IF NOT EXISTS Issues (
+#         id INTEGER PRIMARY KEY AUTOINCREMENT,
+#         order_id INTEGER,
+#         issue_type TEXT NOT NULL,
+#         description TEXT,
+#         FOREIGN KEY (order_id) REFERENCES Orders(order_id)
+#     );
 
-    CREATE TABLE Order_Note (
-        Order_Note_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Order_ID INTEGER NOT NULL,
-        User_ID INTEGER NOT NULL,
-        Description TEXT,
-        FOREIGN KEY (Order_ID) REFERENCES Orders(order_id),
-        FOREIGN KEY (User_ID) REFERENCES Users(user_id)
-    );
+#     CREATE TABLE Order_Note (
+#         Order_Note_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+#         Order_ID INTEGER NOT NULL,
+#         User_ID INTEGER NOT NULL,
+#         Description TEXT,
+#         FOREIGN KEY (Order_ID) REFERENCES Orders(order_id),
+#         FOREIGN KEY (User_ID) REFERENCES Users(user_id)
+#     );
     
-    CREATE TABLE IF NOT EXISTS feedback (
-    feedback_id INTEGER PRIMARY KEY,
-    order_id INTEGER,
-    customer_id INTEGER,
-    rating INTEGER,
-    comment TEXT
-    );
-    ''')
+#     CREATE TABLE IF NOT EXISTS feedback (
+#     feedback_id INTEGER PRIMARY KEY,
+#     order_id INTEGER,
+#     customer_id INTEGER,
+#     rating INTEGER,
+#     comment TEXT
+#     );
+#     ''')
 
 # Insert base data
 cursor.executescript('''
@@ -329,7 +329,7 @@ while start_date <= current_date and order_count < total_orders_needed:
             ) VALUES (?, ?, ?, ?, ?)
         ''', (
             order_id,
-            random.choice([1,4,5,6]) if delivery_status not in ['Unassigned', 'Cancelled'] else None,
+            random.choice([3,4,5,6]) if delivery_status not in ['Unassigned', 'Cancelled'] else None,
             delivery_status,
             pickup_time,
             delivery_time

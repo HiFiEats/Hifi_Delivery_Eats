@@ -239,7 +239,7 @@ body {
 }
 
 .order-status.out-for-delivery {
-    background-color: #e2aa0f;
+    background-color: #ff9800;
     color: white;
 }
 
@@ -255,6 +255,11 @@ body {
 
 .order-status.pending{
     background-color: blueviolet;
+    color: white;
+}
+
+.order-status.order-confirmed{
+    background-color: #fbbc05;;
     color: white;
 }
 
