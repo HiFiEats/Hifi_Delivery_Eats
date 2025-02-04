@@ -252,7 +252,7 @@ def signup():
             return redirect(url_for('signup'))
         
         hashed_password = hash_password(password)
-        cursor.execute('INSERT INTO Users (email, password_hash, full_name, phone_number, is_active, is_delivery_boy, is_admin) VALUES (?, ?, ?, ?, ?)',
+        cursor.execute('INSERT INTO Users (email, password_hash, full_name, phone_number, is_active, is_delivery_boy, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (email, hashed_password, full_name, phone_number, 0, 0, 0))  # Initially inactive
         conn.commit()
 
@@ -347,7 +347,7 @@ def signin():
             if user['is_admin']:
                 return redirect(url_for('admin_dashboard'))
             elif user['is_delivery_boy']:
-                return redirect(url_for('delivery_dashboard'))
+                return redirect(url_for('delivery_agent_dashboard'))
             else:
                 return redirect(url_for('menu', user_id=user['user_id']))
   # Redirect to the promotions page
@@ -2949,6 +2949,9 @@ def order_details(order_id):
                 elif new_status == 'Delivered':
                     if existing_status == 'Completed':
                         return jsonify({'success': False, 'message': "Unable to update status as the order has already been delivered."})
+                    
+                    elif existing_status == 'Cancelled':
+                        return jsonify({'success': False, 'message': "A canceled order cannot be directly updated to Delivered."})
                     # First, get the pickup time
                     pickup_time_result = conn.execute('''
                         SELECT Pickup_time 
@@ -3300,7 +3303,7 @@ def staff_details(agent_id):
         return "Staff member not found", 404
     
     # Calculate service years
-    created_date = datetime.strptime(staff['created_at'], '%Y-%m-%d %H:%M:%S')
+    created_date = datetime.strptime(staff['created_at'], '%Y-%m-%d %H:%M:%S.%f')
     years_of_service = relativedelta(datetime.now(), created_date).years
     
     # Get total orders
@@ -4276,7 +4279,7 @@ def delivery_agent_dashboard():
     Render the dashboard page with orders and statistics.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT * FROM Orders").fetchall()
+    orders = conn.execute("SELECT * FROM Orders ORDER BY order_id DESC").fetchall()
     stats = {
         "total_orders": conn.execute("SELECT COUNT(*) FROM Orders").fetchone()[0],
         "completed_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Completed'").fetchone()[0],
@@ -4293,7 +4296,7 @@ def orders():
     Render the orders page.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT * FROM Orders").fetchall()
+    orders = conn.execute("SELECT * FROM Orders ORDER BY order_id DESC").fetchall()
     conn.close()
     return render_template("orders.html", orders=orders)
 
@@ -4302,10 +4305,28 @@ def orders():
 def update_status(order_id):
     new_status = request.form["new_status"]
     conn = get_db_connection()
-    conn.execute("UPDATE Orders SET order_status = ? WHERE order_id = ?", (new_status, order_id))
+
+    if new_status == "New":
+        status_order = "Order Confirmed"
+        status_delivery = "Assigned"
+    elif new_status == "In Progress":
+        status_order = "Out for Delivery"
+        status_delivery = "Out for Delivery"
+    elif new_status == "Completed":
+        status_order = "Completed"
+        status_delivery = "Delivered on time"
+    elif new_status == "Delayed":
+        status_order = "Completed"
+        status_delivery = "Delviered Delayed"
+    elif new_status == "Canceled":
+        status_order = "Canceled"
+        status_delivery = "Canceled"
+
+    conn.execute("UPDATE Orders SET order_status = ? WHERE order_id = ?", (status_order, order_id))
+    conn.execute("UPDATE Delivery SET status = ? WHERE order_id = ?", (status_delivery, order_id))
     conn.commit()
     conn.close()
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("delivery_agent_dashboard"))
 
 
 
@@ -4490,7 +4511,7 @@ def assign_delivery_agents():
             JOIN Orders o ON d.Order_ID = o.order_id
             WHERE d.Status = 'Unassigned'
             AND d.Delivery_Agent_ID IS NULL
-            AND o.order_status = 'Completed'
+            AND o.order_status = 'Order Confirmed'
             ORDER BY o.order_date, o.order_time
         ''').fetchall()
 
