@@ -1203,45 +1203,36 @@ def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
 
 def fetch_top_selling_items_by_month(month):
-    # Connect to the database
     conn = sqlite3.connect('existing_database.db')
     cursor = conn.cursor()
 
+
+    # Query to fetch top-selling items for the given month
+    
     # Query to fetch top-selling items for the given month
     query = '''
     SELECT mi.Name, SUM(oi.quantity) as total_quantity_sold
-    FROM Order_Items oi
-    JOIN Orders o ON oi.order_id = o.order_id
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.order_id
     JOIN MenuItems mi ON oi.item_id = mi.MenuItemID
-    WHERE strftime('%m', o.order_date) = ?
-    GROUP BY mi.Name
+    WHERE strftime('%Y-%m', o.order_date) = ?
+    GROUP BY mi.name
     ORDER BY total_quantity_sold DESC
     '''
-    
-    # Execute the query with the month parameter
     cursor.execute(query, (month,))
     data = cursor.fetchall()
-    
-    # Close the database connection
     conn.close()
     
-    # Return the fetched data
     return [{'name': row[0], 'total_quantity_sold': row[1]} for row in data]
 
-def generate_top_selling_items_pie_chart(month):
-    data = fetch_top_selling_items_by_month(month)
-    
-    if not data:
-        print(f"No data found for month: {month}")
-        return None  # Handle case when there is no data for the selected month
-
-    df = pd.DataFrame(data, columns=['name', 'total_quantity_sold'])
-    most_sold_item = df.loc[df['total_quantity_sold'].idxmax()]
-    explode = [0.1 if name == most_sold_item['name'] else 0 for name in df['name']]
-    plt.figure(figsize=(10, 8))
-    plt.pie(df['total_quantity_sold'], labels=df['name'], labeldistance=0.8, explode=explode, autopct='%1.1f%%', startangle=140, colors=sns.color_palette('viridis', len(df)))
-    plt.title(f'Top Selling Items for {month}')
-    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+def generate_top_selling_items_bar_chart(items, quantities):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(items, quantities, color='skyblue')
+    plt.xlabel('Items')
+    plt.ylabel('Total Quantity Sold')
+    plt.title('Top Selling Items')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
     
     img_buffer = io.BytesIO()
     plt.savefig(img_buffer, format='png')
@@ -1251,19 +1242,340 @@ def generate_top_selling_items_pie_chart(month):
 
 @app.route('/top_selling_items', methods=['GET', 'POST'])
 def top_selling_items():
-    if request.method == 'POST':
-        month = request.form.get('month')
-        print(f"Form submitted with month: {month}")
-        img_buffer = generate_top_selling_items_pie_chart(month)
-        if img_buffer:
-            plot_url = base64.b64encode(img_buffer.getvalue()).decode()
-            print(f"Generated plot URL: {plot_url[:30]}...")  # Print the first 30 characters of the plot URL
-        else:
-            plot_url = None
-            print("No plot URL generated.")
-        return render_template('top_selling_items.html', plot_url=plot_url, selected_month=month)
+    selected_month = request.form.get('month', datetime.now().strftime('%Y-%m'))
     
-    return render_template('top_selling_items.html', plot_url=None, selected_month=None)
+    top_selling_items_data = fetch_top_selling_items_by_month(selected_month)
+    items = [row['name'] for row in top_selling_items_data]
+    quantities = [row['total_quantity_sold'] for row in top_selling_items_data]
+    
+    top_selling_items_chart = generate_top_selling_items_bar_chart(items, quantities)
+    top_selling_items_chart_url = base64.b64encode(top_selling_items_chart.getvalue()).decode()
+    
+    return render_template('top_selling_items.html', 
+                           top_selling_items_chart_url=top_selling_items_chart_url, 
+                           selected_month=selected_month)
+
+@app.route('/download_top_selling_items', methods=['GET', 'POST'])
+def download_top_selling_items():
+    selected_month = request.form.get('month', datetime.now().strftime('%Y-%m'))
+    
+    top_selling_items_data = fetch_top_selling_items_by_month(selected_month)
+    items = [row['name'] for row in top_selling_items_data]
+    quantities = [row['total_quantity_sold'] for row in top_selling_items_data]
+    
+    top_selling_items_chart = generate_top_selling_items_bar_chart(items, quantities)
+    
+    return send_file(io.BytesIO(top_selling_items_chart.getvalue()), mimetype='image/png', as_attachment=True, download_name=f'top_selling_items_{selected_month}.png')
+
+@app.route('/download_revenue_analysis', methods=['GET', 'POST'])
+def download_revenue_analysis():
+    selected_year = request.form.get('year', '2024')
+    
+    monthly_revenue_data = fetch_monthly_revenue_for_year(selected_year)
+    months = [row['month'] for row in monthly_revenue_data]
+    revenues = [row['revenue'] for row in monthly_revenue_data]
+    
+    revenue_chart = generate_revenue_bar_charts(months, revenues)
+    
+    return send_file(io.BytesIO(revenue_chart.getvalue()), mimetype='image/png', as_attachment=True, download_name=f'revenue_analysis_{selected_year}.png')
+
+@app.route('/download_delivery_performance', methods=['GET', 'POST'])
+def download_delivery_performance():
+    agent_id = request.form.get('agent_id')
+    data = fetch_delivery_data_for_agent(agent_id)
+    average_delivery_time = calculate_average_delivery_time(data)
+    on_time_rate = calculate_on_time_delivery_rate(data)
+    
+    avg_time_chart = generate_average_delivery_time_chart(average_delivery_time)
+    on_time_rate_chart = generate_on_time_delivery_rate_chart(on_time_rate)
+    
+    return send_file(io.BytesIO(avg_time_chart.getvalue()), mimetype='image/png', as_attachment=True, download_name=f'delivery_performance_{agent_id}.png')
+
+def fetch_monthly_revenue_for_year(year):
+    conn = sqlite3.connect('existing_database.db')
+    cursor = conn.cursor()
+    
+    query = '''
+    SELECT strftime('%Y-%m', order_date) as month, SUM(total_price) as revenue
+    FROM orders
+    WHERE strftime('%Y', order_date) = ?
+    GROUP BY month
+    ORDER BY month;
+    '''
+    cursor.execute(query, (year,))
+    data = cursor.fetchall()
+    conn.close()
+    
+    return [{'month': row[0], 'revenue': row[1]} for row in data]
+
+def calculate_average_delivery_time(data):
+    df = pd.DataFrame(data, columns=['delivery_id', 'order_id', 'agent_id', 'status', 'pickup_time', 'delivery_time'])
+    df['pickup_time'] = pd.to_datetime(df['pickup_time'])
+    df['delivery_time'] = pd.to_datetime(df['delivery_time'])
+    
+    df['delivery_duration'] = (df['delivery_time'] - df['pickup_time']).dt.total_seconds() / 60  # Convert to minutes
+    
+    if len(df) == 0:
+        return 0  # No deliveries, so average delivery time is 0
+    
+    average_delivery_time = df['delivery_duration'].mean()
+    
+    return average_delivery_time
+
+def calculate_on_time_delivery_rate(data, on_time_threshold=30):
+    df = pd.DataFrame(data, columns=['delivery_id', 'order_id', 'agent_id', 'status', 'pickup_time', 'delivery_time'])
+    df['pickup_time'] = pd.to_datetime(df['pickup_time'])
+    df['delivery_time'] = pd.to_datetime(df['delivery_time'])
+    
+    df['delivery_duration'] = (df['delivery_time'] - df['pickup_time']).dt.total_seconds() / 60  # Convert to minutes
+    
+    if len(df) == 0:
+        return 0  # No deliveries, so on-time rate is 0
+    
+    on_time_deliveries = df[df['delivery_duration'] <= on_time_threshold]
+    on_time_rate = len(on_time_deliveries) / len(df)
+    
+    return on_time_rate
+
+def generate_average_delivery_time_chart(average_delivery_time):
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.barh(['Average Delivery Time'], [average_delivery_time], color='skyblue')
+    ax.set_xlim(0, max(60, average_delivery_time * 1.2))  # Ensure some padding on the right
+    ax.set_xlabel('Time (minutes)')
+    plt.title('Average Delivery Time')
+    plt.tight_layout()
+    
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+    
+    return img_buffer
+
+def generate_on_time_delivery_rate_chart(on_time_rate):
+    labels = ['On-Time', 'Late']
+    sizes = [on_time_rate, 1 - on_time_rate]
+    colors = ['lightgreen', 'lightcoral']
+    explode = (0.1, 0)  # explode the On-Time slice
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
+    plt.title('On-Time Delivery Rate')
+    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+    
+    return img_buffer
+
+def generate_revenue_bar_charts(months, revenues):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(months, revenues, color='skyblue')
+    plt.xlabel('Month')
+    plt.ylabel('Revenue')
+    plt.title('Revenue Analysis (Bar Chart)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+    
+    return img_buffer
+
+
+
+def fetch_customer_data(year, month):
+    conn = sqlite3.connect('existing_database.db')  # Update with your database path
+    cursor = conn.cursor()
+
+    query = '''
+    SELECT order_date, COUNT(order_id) as order_count
+    FROM orders
+    WHERE strftime('%Y', order_date) = ? AND strftime('%m', order_date) = ?
+    GROUP BY order_date;
+    '''
+    cursor.execute(query, (year, month.zfill(2)))
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+def plot_order_statistics(year, month):
+    data = fetch_customer_data(year, month)
+
+    # Ensure the fetched data is changing for different inputs
+    if not data or len(data) == 0:
+        return "No data available for the selected period."
+
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=['order_date', 'order_count'])
+
+    # Convert order_date to datetime
+    df['order_date'] = pd.to_datetime(df['order_date'], format="%Y-%m-%d", errors="coerce")
+
+    # Ensure no NaT values exist in 'order_date'
+    df = df.dropna(subset=['order_date'])
+
+    # Sort data to ensure correct plotting order
+    df = df.sort_values(by='order_date')
+
+    # Create the figure and the bar plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Convert datetime to numerical values for plotting
+    ax.bar(df['order_date'].map(mdates.date2num), df['order_count'], color='blue', alpha=0.6, width=0.8)
+
+    # Format x-axis for better readability
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=3))  # Show every 3rd day
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    
+    ax.set_title(f'Order Statistics in {year}-{month}')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Number of Orders')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save the plot to a BytesIO object
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+
+    # Convert the BytesIO object to a base64-encoded string
+    img_data = base64.b64encode(img_buffer.getvalue()).decode()
+
+    return img_data
+
+@app.route('/order_statistics', methods=['GET', 'POST'])
+def order_statistics():
+    year = request.form.get('year') # Default to 2023 if not provided
+    month = request.form.get('month') # Default to January if not provided
+
+    # Ensure month is a two-digit string
+    if month:
+        month = month.zfill(2)
+
+    chart_data = plot_order_statistics(year, month)
+    return render_template('order_statistics.html', chart_data=chart_data, year=year, month=month)
+
+@app.route('/download_order_statistics', methods=['GET', 'POST'])
+def download_order_statistics():
+    # year = request.form.get('year') 
+    month = request.form.get('month')
+    year = month[:4]
+    month = month[-2:]
+    print (month)
+    # Ensure month is a two-digit string
+    if month:
+        month = month.zfill(2)
+
+    data = fetch_customer_data(year, month)
+    df = pd.DataFrame(data, columns=['order_date', 'order_count'])
+    df['order_date'] = pd.to_datetime(df['order_date'])
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(df['order_date'], df['order_count'], color='blue', alpha=0.6, width=0.8)
+    ax.set_title(f'Order Statistics in {year}-{month}')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Number of Orders')
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+
+    return send_file(img_buffer, mimetype='image/png', as_attachment=True, download_name=f'order_statistics_{year}-{month}.png')
+
+
+def fetch_customers():
+    conn = sqlite3.connect('existing_database.db')
+    cursor = conn.cursor()
+    query = 'SELECT DISTINCT customer_id FROM orders'
+    cursor.execute(query)
+    data = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in data]
+
+def fetch_customer_orders(customer_id):
+    conn = sqlite3.connect('existing_database.db')
+    cursor = conn.cursor()
+
+    query = '''
+    SELECT order_date, total_price
+    FROM orders
+    WHERE customer_id = ?
+    ORDER BY order_date
+    '''
+    cursor.execute(query, (customer_id,))
+    data = cursor.fetchall()
+    conn.close()
+    return data
+
+def plot_customer_orders(customer_id):
+    data = fetch_customer_orders(customer_id)
+    df = pd.DataFrame(data, columns=['order_date', 'total_price'])
+
+    # Convert order_date to datetime
+    df['order_date'] = pd.to_datetime(df['order_date'])
+
+    # Create the figure and the plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(df['order_date'], df['total_price'], marker='o', linestyle='-', color='royalblue')
+    ax.set_title(f'Order History for Customer {customer_id}')
+    ax.set_xlabel('Order Date')
+    ax.set_ylabel('Total Price')
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save the plot to a BytesIO object
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+
+    # Convert the BytesIO object to a base64-encoded string
+    img_data = base64.b64encode(img_buffer.getvalue()).decode()
+    
+    return img_data
+
+@app.route('/customer_orders_history', methods=['GET', 'POST'])
+def customer_orders_history():
+    customers = fetch_customers()
+    selected_customer = request.form.get('customer_id')
+    chart_html = ''
+
+    if request.method == 'POST' and selected_customer:
+        chart_html = plot_customer_orders(selected_customer)
+
+    return render_template('customer_orders_history.html', customers=customers, chart_html=chart_html)
+
+@app.route('/download_customer_orders_history', methods=['POST'])
+def download_customer_orders_history():
+    selected_customer = request.form.get('customer_id')
+    
+    data = fetch_customer_orders(selected_customer)
+    df = pd.DataFrame(data, columns=['order_date', 'total_price'])
+
+    # Convert order_date to datetime
+    df['order_date'] = pd.to_datetime(df['order_date'])
+
+    # Create the figure and the plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(df['order_date'], df['total_price'], marker='o', linestyle='-', color='royalblue')
+    ax.set_title(f'Order History for Customer {selected_customer}')
+    ax.set_xlabel('Order Date')
+    ax.set_ylabel('Total Price')
+    ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save the plot to a BytesIO object
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png')
+    img_buffer.seek(0)
+
+    return send_file(img_buffer, mimetype='image/png', as_attachment=True, download_name=f'customer_orders_history_{selected_customer}.png')
 
 from flask import Flask, render_template, request, g
 @app.teardown_appcontext
@@ -1359,7 +1671,7 @@ def generate_feedback_analysis(db_path):
     }
 
 
-def fetch_customer_data():
+def fetch_customer_datas():
     conn = sqlite3.connect('existing_database.db')  # Update with your database path
     cursor = conn.cursor()
 
@@ -1374,7 +1686,7 @@ def fetch_customer_data():
     return data
 
 def plot_order_frequency_spending():
-    data = fetch_customer_data()
+    data = fetch_customer_datas()
     df = pd.DataFrame(data, columns=['customer_id', 'order_date', 'order_count', 'total_spent'])
 
     # Convert order_date to datetime
