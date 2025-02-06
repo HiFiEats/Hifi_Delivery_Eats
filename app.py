@@ -1400,6 +1400,52 @@ def fetch_customer_data(year, month):
     conn.close()
     return data
 
+# Generate the plot for order frequency
+def plot_order_frequency(year, month):
+    data = fetch_customer_data(year, month)
+    df = pd.DataFrame(data, columns=['order_date', 'order_count'])
+
+    # Convert order_date to datetime
+    df['order_date'] = pd.to_datetime(df['order_date'])
+
+    # Create a figure
+    fig = go.Figure()
+
+    # Add bar plot for order frequency
+    fig.add_trace(
+        go.Bar(
+            x=df['order_date'],
+            y=df['order_count'],
+            name='Order Frequency',
+            marker=dict(color='blue'),
+            opacity=0.6,
+            width=[2] * len(df)  # Adjust width for thinner bars
+
+        )
+    )
+
+    # Update layout
+    fig.update_layout(
+        title=f'Order Frequency in {year}-{month}',
+        xaxis_title='Date',
+        yaxis_title='Number of Orders',
+        xaxis=dict(
+            tickformat='%Y-%m-%d',  # Format x-axis for date display
+            tickangle=-45,   # Angle for better readability
+            tickvals=df['order_date']  # Show only specified dates
+        
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    return pio.to_html(fig, full_html=False)
+
 def plot_order_statistics(year, month):
     data = fetch_customer_data(year, month)
 
@@ -1752,12 +1798,23 @@ def order_frequency_spending():
     chart_html = plot_order_frequency_spending()
     return render_template('order_frequency_spending.html', chart_html=chart_html)
 
+@app.route('/order_frequency', methods=['GET'])
+def order_frequency():
+    year = request.args.get('year') or '2023'  # Default to 2023 if not provided
+    month = request.args.get('month') or '01'  # Default to January if not provided
+
+    # Ensure month is a two-digit string
+    if month:
+        month = month.zfill(2)
+
+    chart_html = plot_order_frequency(year, month)
+    return render_template('order_frequency.html', chart_html=chart_html)
 
 
 def fetch_customers():
     conn = sqlite3.connect('existing_database.db')
     cursor = conn.cursor()
-    query = 'SELECT DISTINCT customer_id FROM Orders'
+    query = 'SELECT DISTINCT customer_id FROM orders'
     cursor.execute(query)
     data = cursor.fetchall()
     conn.close()
@@ -1769,7 +1826,7 @@ def fetch_customer_purchases(customer_id):
 
     query = '''
     SELECT order_date, total_price
-    FROM Orders
+    FROM orders
     WHERE customer_id = ?
     ORDER BY order_date
     '''
@@ -1804,7 +1861,6 @@ def customer_purchases():
         chart_html = plot_customer_purchases(selected_customer)
 
     return render_template('customer_purchases.html', customers=customers, chart_html=chart_html)
-
 
 app.jinja_env.filters['zfill'] = lambda s: str(s).zfill(2)
 
