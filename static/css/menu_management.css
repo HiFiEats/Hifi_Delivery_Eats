@@ -6,27 +6,30 @@ h1 {
 
 /* Add new form styles */
 .form-title {
-  color: #ff5714;
+  color: #1d9b82; /* Highlight color for form title */
 }
 
 .bg-form {
-  background-color: #ffffff;
+  background-color: #ffab77; /* Dark background color */
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 20px;
+  color: #000000; /* Light text color for visibility */
 }
 
 .input-field {
-  border: 1px solid #ff9f1c;
+  border: 1px solid #34495e; /* Dark border color */
   border-radius: 5px;
   padding: 8px;
   width: 100%;
+  background-color: #ffe6e698; /* Dark input background */
+  color: #33311e; /* Light text color */
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #ff5714;
-  box-shadow: 0 0 5px rgba(255, 87, 20, 0.3);
+  border-color: #1abc9c; /* Highlight border color */
+  box-shadow: 0 0 5px rgba(26, 188, 156, 0.3); /* Highlight shadow */
 }
 
 /* Update button styles */
@@ -40,21 +43,21 @@ button:hover {
 }
 
 .btn-primary {
-  background-color: #ff9f1c;
+  background-color: #1abc9c; /* Primary button color */
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #ff5714;
+  background-color: #16a085; /* Darker shade on hover */
 }
 
 .btn-secondary {
-  background-color: #eeeeee;
-  color: #555555;
+  background-color: #95a5a6; /* Secondary button color */
+  color: white;
 }
 
 .btn-secondary:hover {
-  background-color: #d9d9d9;
+  background-color: #7f8c8d; /* Darker shade on hover */
 }
 
 /* Updated menu card styles */
@@ -443,8 +446,9 @@ textarea:focus {
 .page-title {
   flex: 1;
   text-align: center;
+  color: #000;
   margin: 0;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: bold;
 }
 .menu-card img{
