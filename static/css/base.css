@@ -416,3 +416,24 @@ body, h1, p, ul, li {
             margin-left: 10px;
         }
     }
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 20px;
+}
+
+.header-content h1 {
+    margin: 0;
+}
+
+.header .user-info {
+    display: flex;
+    align-items: center;
+}
+
+.header .user-info h3 {
+    margin: 0 10px 0 0;
+}
