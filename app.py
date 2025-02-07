@@ -392,7 +392,7 @@ def promotions():
     conn.close()
     active_promotions = get_active_promotions(user_id)
     claimed_promotions = session.get('claimed_promotions', {})
-    return render_template('promotions.html', user=user, promotions=active_promotions, claimed_promotions=claimed_promotions)
+    return render_template('promotions.html', user=user, promotions=active_promotions, claimed_promotions=claimed_promotions, user_id=user_id)
 
 @app.route('/claim_promotion/<int:promotion_id>')
 @login_required
@@ -563,7 +563,7 @@ def get_most_sold_item(data):
 def admin_dashboard():
     if not is_admin():
         flash('Access denied. Admins only.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('signin'))
 
     conn = get_db()
     cursor = conn.cursor()
@@ -2908,7 +2908,8 @@ def get_orders():
             'customer_name': order['full_name'],
             'user_id': f'User ID: {order["user_id"]}',
             'amount': order['total_price'],
-            'status': order['order_status']
+            'status': order['order_status'],
+            'address': order['delivery_location']
         })
     
     response = {

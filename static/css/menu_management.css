@@ -6,30 +6,27 @@ h1 {
 
 /* Add new form styles */
 .form-title {
-  color: #1d9b82; /* Highlight color for form title */
+  color: #ff5714;
 }
 
 .bg-form {
-  background-color: #ffab77; /* Dark background color */
+  background-color: #ffffff;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
-  color: #000000; /* Light text color for visibility */
 }
 
 .input-field {
-  border: 1px solid #34495e; /* Dark border color */
+  border: 1px solid #ff9f1c;
   border-radius: 5px;
   padding: 8px;
   width: 100%;
-  background-color: #ffe6e698; /* Dark input background */
-  color: #33311e; /* Light text color */
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #1abc9c; /* Highlight border color */
-  box-shadow: 0 0 5px rgba(26, 188, 156, 0.3); /* Highlight shadow */
+  border-color: #ff5714;
+  box-shadow: 0 0 5px rgba(255, 87, 20, 0.3);
 }
 
 /* Update button styles */
@@ -43,21 +40,21 @@ button:hover {
 }
 
 .btn-primary {
-  background-color: #1abc9c; /* Primary button color */
+  background-color: #ff9f1c;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #16a085; /* Darker shade on hover */
+  background-color: #ff5714;
 }
 
 .btn-secondary {
-  background-color: #95a5a6; /* Secondary button color */
-  color: white;
+  background-color: #eeeeee;
+  color: #555555;
 }
 
 .btn-secondary:hover {
-  background-color: #7f8c8d; /* Darker shade on hover */
+  background-color: #d9d9d9;
 }
 
 /* Updated menu card styles */
@@ -335,11 +332,11 @@ aside {
   --text-light: #333;
 
   /* Dark Mode Colors */
-  --primary-dark: #1e90ff;
-  --secondary-dark: #20b2aa;
-  --background-dark: #2c3e50;
-  --card-bg-dark: #34495e;
-  --text-dark: #ecf0f1;
+  --primary-dark: #ff8c00;
+  --secondary-dark: #ffa500;
+  --background-dark: #ffdab9;
+  --card-bg-dark: #ffdab9;
+  --text-dark: #333;
 
   /* Common Colors */
   --success: #2ecc71;
@@ -446,9 +443,8 @@ textarea:focus {
 .page-title {
   flex: 1;
   text-align: center;
-  color: #000;
   margin: 0;
-  font-size: 30px;
+  font-size: 24px;
   font-weight: bold;
 }
 .menu-card img{
