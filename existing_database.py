@@ -85,26 +85,26 @@ cursor = conn.cursor()
 #         FOREIGN KEY (MenuItemID) REFERENCES MenuItems(MenuItemID)
 #     );
 
-#     CREATE TABLE IF NOT EXISTS Orders (
-#         order_id INTEGER PRIMARY KEY AUTOINCREMENT,
-#         customer_id INTEGER,
-#         total_price DECIMAL(10, 2) NOT NULL,
-#         order_status VARCHAR(50) NOT NULL,
-#         delivery_location VARCHAR(255) NOT NULL,
-#         order_date DATE DEFAULT CURRENT_DATE,
-#         order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-#         FOREIGN KEY (customer_id) REFERENCES Users(user_id)
-#     );
+    # CREATE TABLE IF NOT EXISTS Orders (
+    #     order_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #     customer_id INTEGER,
+    #     total_price DECIMAL(10, 2) NOT NULL,
+    #     order_status VARCHAR(50) NOT NULL,
+    #     delivery_location VARCHAR(255) NOT NULL,
+    #     order_date DATE DEFAULT CURRENT_DATE,
+    #     order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    #     FOREIGN KEY (customer_id) REFERENCES Users(user_id)
+    # );
 
-#     CREATE TABLE IF NOT EXISTS Order_Items (
-#         order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-#         order_id INTEGER,
-#         item_id INTEGER,
-#         quantity INTEGER NOT NULL,
-#         price DECIMAL(10, 2) NOT NULL,
-#         FOREIGN KEY (order_id) REFERENCES Orders(order_id),
-#         FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
-#     );
+    # CREATE TABLE IF NOT EXISTS Order_Items (
+    #     order_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #     order_id INTEGER,
+    #     item_id INTEGER,
+    #     quantity INTEGER NOT NULL,
+    #     price DECIMAL(10, 2) NOT NULL,
+    #     FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    #     FOREIGN KEY (item_id) REFERENCES MenuItems(MenuItemID)
+    # );
 
 #     CREATE TABLE IF NOT EXISTS Cart (
 #         cart_id INTEGER PRIMARY KEY AUTOINCREMENT,

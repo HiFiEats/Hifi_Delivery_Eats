@@ -116,3 +116,79 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+const button = document.getElementById('add-discount-btn');
+const container = document.getElementById('discount-container');
+
+button.addEventListener('click', () => {
+    if (container.style.visibility === 'hidden' || !container.style.visibility) {
+        container.style.visibility = 'visible';
+        container.style.opacity = '1';
+    } else {
+        container.style.visibility = 'hidden';
+        container.style.opacity = '0';
+    }
+});
+
+
+
+document.getElementById("validate-coupon-btn").addEventListener("click", function () {
+    const couponCode = document.getElementById("coupon-code").value.trim();
+    
+    if (!couponCode) {
+        alert("Please enter a coupon code.");
+        return;
+    }
+    
+    // Show loading state
+    const validateButton = this;
+    validateButton.disabled = true;
+    validateButton.textContent = "Validating...";
+    
+    fetch("/coupons", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({ 
+            coupon_code: couponCode, 
+            total_price: TOTAL_PRICE 
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const discountAmount = TOTAL_PRICE - data.discounted_price;
+            
+            // Update the total payment section
+            const totalPaymentUl = document.querySelector(".total-payment ul");
+            
+           
+            
+            // Add new discount lines
+            totalPaymentUl.insertAdjacentHTML('beforeend', `
+                <li><strong>Discount:</strong> <span>-$${discountAmount.toFixed(2)}</span></li>
+                <li><strong>Final Price:</strong> <span>$${data.discounted_price.toFixed(2)}</span></li>
+            `);
+            
+            alert("Coupon applied successfully!");
+        } else {
+            alert(data.message || "Invalid coupon code");
+        }
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        alert("Error validating coupon. Please try again.");
+    })
+    .finally(() => {
+        // Reset button state
+        validateButton.disabled = false;
+        validateButton.textContent = "Validate";
+    });
+});

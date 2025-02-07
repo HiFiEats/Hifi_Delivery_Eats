@@ -48,15 +48,22 @@
                     <span class="item-price">Total: ${{item.quantity * item.price}}</span>
                 </section>
                 {% endfor %}
-                
                 <div class="subtotal">
                     <strong>Sub Total:</strong> <span>${{sub_total}}</span>
-                </div><br>
+                </div>
+                <div class="discount">
+                    <button class="btn" id="add-discount-btn">Add Discount</button>
+                    <div id="discount-container">
+                        <input type="text" id="coupon-code" placeholder="Enter Coupon Code" style="width: 600px;">
+                        <button type="button" id="validate-coupon-btn" class="btn btn-green" style="margin-left: 5px; margin-top: 35px;">Validate</button>
+                    </div>
+
+                </div>
                 <div class="order-note">
-                    <b><p>Order Note (Optional)</p></b>
+                    <b><p>Order Note</p></b>
                   <input type="text" id="order-note" 
                             name="order_note"
-                            placeholder="Enter any special instructions..." style="width: 600px;"></input>
+                            placeholder="Enter any special instructions..." style="width: 710px;"></input>
                 </div>
             </div>
 
@@ -106,6 +113,9 @@
 
     <div id="error-message" class="error-message" style="display: none;"></div>
 
+    <script>
+        const TOTAL_PRICE = "{{ total_price | tojson | safe }}";
+    </script>
     <script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
 </body>
 </html>

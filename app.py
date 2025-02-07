@@ -4023,6 +4023,59 @@ def render_checkout(user_id):
             conn.close()
 
 
+@app.route('/coupons', methods=['POST'])
+def add_coupon():
+    if not request.is_json:
+        return jsonify({'success': False, 'message': 'Invalid request format'}), 400
+        
+    try:
+        data = request.get_json()
+        
+        if not data or 'coupon_code' not in data or 'total_price' not in data:
+            return jsonify({'success': False, 'message': 'Missing required data'}), 400
+        
+        coupon_code = data['coupon_code']
+        total_price = float(data['total_price'])
+        
+        # Find matching coupon
+        matching_coupon = next(
+            (coupon for coupon in PROMOTIONS['offers'] 
+             if coupon['promo_code'] == coupon_code), 
+            None
+        )
+        
+        if not matching_coupon:
+            return jsonify({'success': False, 'message': 'Invalid coupon code'}), 400
+            
+        # Check minimum order amount
+        min_amount = matching_coupon.get('min_order_amount', 0)
+        if total_price < min_amount:
+            return jsonify({
+                'success': False, 
+                'message': f'Minimum order amount should be ${min_amount}'
+            }), 400
+            
+        # Calculate discount
+        if matching_coupon['discount_type'] == 'percentage':
+            discount = (matching_coupon['discount_amount'] / 100) * total_price
+        else:
+            discount = matching_coupon['discount_amount']
+            
+        discounted_price = total_price - discount
+        
+        return jsonify({
+            'success': True,
+            'discounted_price': round(discounted_price, 2)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error processing coupon: {str(e)}")  # For debugging
+        return jsonify({
+            'success': False,
+            'message': 'Error processing coupon'
+        }), 500
+
+
 @app.route('/place_order/<int:order_id>', methods=['GET', 'POST'])
 def place_order(order_id):
     try:
