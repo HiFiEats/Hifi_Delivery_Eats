@@ -1,7 +1,7 @@
 import sqlite3
 import random
 import jwt
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, g
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
@@ -340,6 +340,11 @@ def signin():
             session['user_id'] = user['user_id']
             session['user'] = user['email']  # Set the user email in session
             session['is_admin'] = user['is_admin']
+            session['is_delivery_boy'] = user['is_delivery_boy']
+            if not user['is_admin'] and not user['is_delivery_boy']:
+                session['is_customer'] = True
+            else:
+                session['is_customer'] = False
             session['claimed_promotions'] = {}
 
             conn.close()
@@ -347,7 +352,7 @@ def signin():
             if user['is_admin']:
                 return redirect(url_for('admin_dashboard'))
             elif user['is_delivery_boy']:
-                return redirect(url_for('delivery_agent_dashboard'))
+                return redirect(url_for('delivery_agent_dashboard',agent_id=user['user_id']))
             else:
                 return redirect(url_for('menu', user_id=user['user_id']))
   # Redirect to the promotions page
@@ -369,6 +374,52 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def is_admin():
+    user_email = session.get('user')
+    if not user_email:
+        print("No user in session")
+        return False
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT is_admin FROM Users WHERE email = ?', (user_email,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        print(f"User {user_email} is {'an admin' if user['is_admin'] == 1 else 'not an admin'}")
+    return user and user['is_admin'] == 1
+
+def is_delivery_boy():
+    user_email = session.get('user')
+    if not user_email:
+        print("No user in session")
+        return False
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT is_delivery_boy FROM Users WHERE email = ?', (user_email,))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        print(f"User {user_email} is a delivery boy")
+        return True
+    else:
+        return False
+
+def is_customer():
+    user_email = session.get('user')
+    if not user_email:
+        print("No user in session")
+        return False
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT is_admin, is_delivery_boy FROM Users WHERE email = ?', (user_email,))
+    user = cursor.fetchone()
+    conn.close()
+    if not user['is_admin'] and not user['is_delivery_boy']:
+        print(f"User {user_email} is a customer")
+        return True
+    else:
+        return False
+
 # Function to get active promotions
 def get_active_promotions(user_id):
     current_date = datetime.now().strftime('%Y-%m-%d')
@@ -384,6 +435,10 @@ def get_active_promotions(user_id):
 @app.route('/promotions')
 @login_required
 def promotions():
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     user_id = session['user_id']
     conn = get_db()
     cursor = conn.cursor()
@@ -577,26 +632,16 @@ def admin_dashboard():
 
     return render_template('admin_dashboard.html', users=users)
 
-def is_admin():
-    user_email = session.get('user')
-    if not user_email:
-        print("No user in session")
-        return False
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute('SELECT is_admin FROM Users WHERE email = ?', (user_email,))
-    user = cursor.fetchone()
-    conn.close()
-    if user:
-        print(f"User {user_email} is {'an admin' if user['is_admin'] == 1 else 'not an admin'}")
-    return user and user['is_admin'] == 1
-
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/reports')
 def reports():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('reports.html')
 
 @app.route('/admin/deactivate_user/<int:user_id>')
@@ -841,6 +886,10 @@ def calculate_average_delivery_time(data):
 
 @app.route('/delivery_metrics', methods=['GET', 'POST'])
 def delivery_metrics():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     if request.method == 'POST':
         agent_id = request.form.get('agent_id')
         data = fetch_delivery_data_for_agent(agent_id)
@@ -903,6 +952,10 @@ def add_delivery(order_id, agent_id, status, pickup_time, delivery_time):
 
 @app.route('/restaurant_dashboard')
 def restaurant_dashboard():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+
     urls = {
         'sales_trends': url_for('sales_trends'),
         'reports': url_for('reports'),
@@ -921,6 +974,10 @@ def restaurant_dashboard():
 
 @app.route('/admin_notifications')
 def admin_notifications():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('admin_notifications.html')
 
 @app.route('/logout')
@@ -931,6 +988,10 @@ def logout():
 
 @app.route('/sales_trends', methods=['GET', 'POST'])
 def sales_trends():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     if request.method == 'POST':
         period = request.form.get('period', 'monthly')
         chart_type = request.form.get('chart_type', 'line')
@@ -1242,6 +1303,10 @@ def generate_top_selling_items_bar_chart(items, quantities):
 
 @app.route('/top_selling_items', methods=['GET', 'POST'])
 def top_selling_items():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     selected_month = request.form.get('month', datetime.now().strftime('%Y-%m'))
     
     top_selling_items_data = fetch_top_selling_items_by_month(selected_month)
@@ -1493,6 +1558,10 @@ def plot_order_statistics(year, month):
 
 @app.route('/order_statistics', methods=['GET', 'POST'])
 def order_statistics():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     year = request.form.get('year') # Default to 2023 if not provided
     month = request.form.get('month') # Default to January if not provided
 
@@ -1587,6 +1656,10 @@ def plot_customer_orders(customer_id):
 
 @app.route('/customer_orders_history', methods=['GET', 'POST'])
 def customer_orders_history():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     customers = fetch_customers()
     selected_customer = request.form.get('customer_id')
     chart_html = ''
@@ -1623,7 +1696,6 @@ def download_customer_orders_history():
 
     return send_file(img_buffer, mimetype='image/png', as_attachment=True, download_name=f'customer_orders_history_{selected_customer}.png')
 
-from flask import Flask, render_template, request, g
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
@@ -1638,6 +1710,10 @@ def get_db():
 
 @app.route("/feedback-analysis")
 def feedback_analysis():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     db_path = 'existing_database.db'  # Update with your actual database path
     analysis_results = generate_feedback_analysis(db_path)
     
@@ -1648,12 +1724,6 @@ def feedback_analysis():
         sentiment_plot_div=analysis_results['sentiment_plot_div'],
         sentiment_pie_chart_path=analysis_results['sentiment_pie_chart_path']
     )
-
-
-import sqlite3
-import pandas as pd
-
-
 
 def get_sentiment_category(sentiment_polarity):
     if sentiment_polarity > 0:
@@ -1795,11 +1865,19 @@ def plot_order_frequency_spending():
 
 @app.route('/order_frequency_spending', methods=['GET'])
 def order_frequency_spending():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     chart_html = plot_order_frequency_spending()
     return render_template('order_frequency_spending.html', chart_html=chart_html)
 
 @app.route('/order_frequency', methods=['GET'])
 def order_frequency():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     year = request.args.get('year') or '2023'  # Default to 2023 if not provided
     month = request.args.get('month') or '01'  # Default to January if not provided
 
@@ -1853,6 +1931,10 @@ def plot_customer_purchases(customer_id):
 
 @app.route('/customer_purchases', methods=['GET', 'POST'])
 def customer_purchases():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     customers = fetch_customers()
     selected_customer = request.form.get('customer_id')
     chart_html = ''
@@ -1866,6 +1948,10 @@ app.jinja_env.filters['zfill'] = lambda s: str(s).zfill(2)
 
 @app.route('/revenue_metrics', methods=['GET', 'POST'])
 def revenue_metrics():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     selected_year = request.form.get('year', '2024')
     
     monthly_revenue_data = fetch_monthly_revenue_for_year(selected_year)
@@ -2230,6 +2316,10 @@ HiFi Delivery Eats Team"""
 # Route for Unassigned Orders page
 @app.route('/unassigned-orders')
 def unassigned_orders():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     db = get_db_connection()
     cur = db.cursor()
     cur.execute(""" SELECT d.Order_ID,o.total_price,o.delivery_location,u.full_name FROM Delivery d JOIN Orders o ON d.Order_ID = o.order_id
@@ -2249,6 +2339,9 @@ def view_more_orders():
 
 @app.route('/assign-dashboard/<int:order_id>')
 def agent_assignment_dashboard(order_id):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
     db = get_db_connection()
     cur = db.cursor()
 
@@ -2337,7 +2430,7 @@ def assign_agent(order_id, agent_id):
             # Update Delivery_Agents table
             cur.execute("""
                 UPDATE Delivery_Agents
-                SET status = 'on delivery'
+                SET status = 'in delivery'
                 WHERE id = ?;
             """, (agent_id,))
 
@@ -2362,10 +2455,18 @@ def assign_agent(order_id, agent_id):
 
 @app.route('/order-overview')
 def order_overview():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('order_overview.html')
 
 @app.route('/api/order-stats')
 def get_order_stats():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2399,6 +2500,10 @@ def get_order_stats():
 
 @app.route('/api/daily-status/<date>')
 def get_daily_status(date):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2432,6 +2537,10 @@ def get_daily_status(date):
 
 @app.route('/api/weekly-status/<date>')
 def get_weekly_status(date):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2488,6 +2597,10 @@ def get_weekly_status(date):
 
 @app.route('/api/monthly-status/<month>')
 def get_monthly_status(month):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2560,6 +2673,10 @@ def get_monthly_status(month):
 
 @app.route('/api/yearly-status/<year>')
 def get_yearly_status(year):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2622,10 +2739,18 @@ def get_status_background_color(status):
 
 @app.route('/performance-metrics')
 def performance_metrics():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('performance_metrics.html')
 
 @app.route('/api/delivery_agents')
 def get_delivery_agents():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     query = "SELECT id, name FROM Delivery_agents"
     agents = conn.execute(query).fetchall()
@@ -2827,10 +2952,18 @@ def get_monthly_performance(agent_id, selected_month, thresholds):
 
 @app.route('/order-management')
 def order_management():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('order_management.html')
 
 @app.route('/api/orders', methods=['GET'])
 def get_orders():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -2923,6 +3056,10 @@ def get_orders():
 
 @app.route('/admin/order/<int:order_id>', methods = ['GET','POST'])
 def order_details(order_id):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     
     # Get order details with customer information
@@ -3188,6 +3325,10 @@ def reassign_agent():
 
 @app.route('/staff-details')
 def staff_list():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     staff_data = {}
     
@@ -3238,6 +3379,10 @@ def search_staff():
 
 @app.route('/api/staff/filter')
 def filter_staff():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     filter_type = request.args.get('type', '')
     
     conn = get_db_connection()
@@ -3347,6 +3492,10 @@ def remove_staff():
 
 @app.route('/staff/<agent_id>')
 def staff_details(agent_id):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     
     # Get staff member details
@@ -3445,10 +3594,18 @@ def get_agent_status(agent_id):
 
 @app.route('/admin')
 def admin():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('adminpanel.html')
 
 @app.route('/api/menu_items', methods=['GET', 'POST'])
 def menu_items():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -3514,6 +3671,10 @@ def menu_items():
 # Update existing menu item
 @app.route('/api/menu_items', methods=['PUT'])
 def update_menu_item():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     try:
         data = request.json
         menu_item_id = data.get('MenuItemID')
@@ -3556,6 +3717,10 @@ def update_menu_item():
 # Delete menu item
 @app.route('/api/menu_items/<int:item_id>', methods=['DELETE'])
 def modify_menu_item(item_id):
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -3574,6 +3739,7 @@ def modify_menu_item(item_id):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -3588,6 +3754,10 @@ def get_categories():
 #Export pdf
 @app.route('/api/export_menu_items', methods=['GET'])
 def export_menu_items():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -3649,6 +3819,10 @@ def export_menu_items():
         conn.close()
 @app.route("/issues_reported")
 def issues_reported():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Render the page showing all reported issues.
     """
@@ -3713,6 +3887,10 @@ HiFi Delivery Eats Team"""
 
 @app.route('/menu/<int:user_id>')
 def menu(user_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template('menu.html',user_id=user_id)
 
 @app.route('/api/dietary_preferences', methods=['GET'])
@@ -3814,9 +3992,6 @@ def render_or_add_to_cart(user_id):
         finally:
             conn.close()
 
-    
-
-
 def get_cart_count(user_id):
     conn = get_db_connection()
     cart_count = conn.execute(
@@ -3834,6 +4009,10 @@ def get_cart_count_api(user_id):
 # Render the cart items
 @app.route('/cart/<int:user_id>', methods=['GET'])
 def render_cart(user_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     cart_items = conn.execute(
         ''' SELECT Cart.item_id, MenuItems.Name AS name, Cart.quantity, Cart.price, MenuItems.ImageURL as image_url
@@ -3892,8 +4071,6 @@ def update_cart_quantity():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-    
 #updating total price in the cart
 @app.route('/cart/total/<int:user_id>', methods=['GET'])
 def fetch_cart_total(user_id):
@@ -3906,6 +4083,10 @@ def fetch_cart_total(user_id):
 
 @app.route('/checkout/<int:user_id>', methods=['GET', 'POST'])
 def render_checkout(user_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -4079,6 +4260,10 @@ def add_coupon():
 
 @app.route('/place_order/<int:order_id>', methods=['GET', 'POST'])
 def place_order(order_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -4139,6 +4324,10 @@ def place_order(order_id):
 # ORDER SUMMARY PAGE: Render order summary details and allow cancellation
 @app.route('/order-summary/<int:order_id>', methods=['GET'])
 def render_order_summary(order_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     
     try:
@@ -4236,11 +4425,13 @@ def get_delivery_agent(order_id):
     agent_details = get_delivery_agent_details(order_id)
     return jsonify(agent_details)
 
-
-
 # order section rendering page 
 @app.route('/order-history/<int:user_id>')
 def order_history(user_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     conn = get_db_connection()
     
     # Updated query to include order_date and order_time
@@ -4311,6 +4502,10 @@ def order_history(user_id):
 # CANCEL ORDER: Handle order cancellation
 @app.route('/cancel_order/<int:order_id>', methods=['POST'])
 def cancel_order(order_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     try:
         conn = get_db_connection()
         #Get user_id from the Orders table
@@ -4343,6 +4538,10 @@ def cancel_order(order_id):
 # Route to display feedback form
 @app.route("/feedback-form/<int:order_id>", methods=['POST'])
 def feedback_form(order_id):
+    if not is_customer():
+        flash('Access denied. Users only.', 'error')
+        return redirect(url_for('signin'))
+    
     return render_template("feedback_form.html", order_id=order_id)
 
 # Route to handle form submission
@@ -4383,38 +4582,47 @@ def get_db_connection():
     return conn
 
 
-@app.route("/delivery_agent_dashboard")
-def delivery_agent_dashboard():
+@app.route("/delivery_agent_dashboard/<int:agent_id>")
+def delivery_agent_dashboard(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Render the dashboard page with orders and statistics.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT * FROM Orders ORDER BY order_id DESC").fetchall()
+    orders = conn.execute("SELECT o.* FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ?  ORDER BY order_id DESC", (agent_id,)).fetchall()
     stats = {
-        "total_orders": conn.execute("SELECT COUNT(*) FROM Orders").fetchone()[0],
-        "completed_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Completed'").fetchone()[0],
-        "canceled_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Canceled'").fetchone()[0],
-        "delayed_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Delayed'").fetchone()[0],
+        "total_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID = ?",(agent_id,)).fetchone()[0],
+        "completed_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status IN ('Delivered on time', 'Delivered delayed')",(agent_id,)).fetchone()[0],
+        "canceled_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status='Canceled'",(agent_id,)).fetchone()[0],
+        "delayed_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status='Delivered delayed'",(agent_id,)).fetchone()[0],
     }
     conn.close()
-    return render_template("dashboard.html", orders=orders, stats=stats)
+    return render_template("dashboard.html", orders=orders, stats=stats,agent_id=agent_id)
 
 
-@app.route("/orders")
-def orders():
+@app.route("/orders/<int:agent_id>")
+def orders(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Render the orders page.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT * FROM Orders ORDER BY order_id DESC").fetchall()
+    orders = conn.execute("SELECT o.* FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ? ORDER BY order_id DESC", (agent_id,)).fetchall()
     conn.close()
-    return render_template("orders.html", orders=orders)
+    return render_template("orders.html", orders=orders,agent_id=agent_id)
 
 
 @app.route("/update_status/<int:order_id>", methods=["POST"])
 def update_status(order_id):
     new_status = request.form["new_status"]
     conn = get_db_connection()
+    agent_id = conn.execute("SELECT Delivery_Agent_ID FROM Delivery WHERE Order_ID = ?", (order_id,)).fetchone()[0]
 
     if new_status == "New":
         status_order = "Order Confirmed"
@@ -4436,12 +4644,16 @@ def update_status(order_id):
     conn.execute("UPDATE Delivery SET status = ? WHERE order_id = ?", (status_delivery, order_id))
     conn.commit()
     conn.close()
-    return redirect(url_for("delivery_agent_dashboard"))
+    return redirect(url_for("delivery_agent_dashboard",agent_id=agent_id))
 
 
 
-@app.route("/report_issue", methods=["GET", "POST"])
-def report_issue():
+@app.route("/report_issue/<int:agent_id>", methods=["GET", "POST"])
+def report_issue(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Handle the submission of a new issue report.
     """
@@ -4456,8 +4668,8 @@ def report_issue():
         conn.close()
 
         flash("Issue reported successfully.", "success")
-        return redirect(url_for("delivery_agent_dashboard"))
-    return render_template("report_issue.html")
+        return redirect(url_for("delivery_agent_dashboard",agent_id=agent_id))
+    return render_template("report_issue.html",agent_id=agent_id)
 
 
 @app.route("/resolve/<int:issue_id>", methods=["POST"])
@@ -4472,25 +4684,33 @@ def resolve_issue(issue_id):
     return redirect(url_for("issues_reported"))
 
 
-@app.route("/route")
-def route_map():
+@app.route("/route/<int:agent_id>")
+def route_map(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Render the route map page.
     """
-    return render_template("map.html")
+    return render_template("map.html",agent_id=agent_id)
 
 
-@app.route("/performance")
-def performance():
+@app.route("/performance/<int:agent_id>")
+def performance(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Display order statistics and performance metrics.
     """
     conn = get_db_connection()
     stats = {
-        "total_orders": conn.execute("SELECT COUNT(*) FROM Orders").fetchone()[0],
-        "completed_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Completed'").fetchone()[0],
-        "canceled_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Canceled'").fetchone()[0],
-        "delayed_orders": conn.execute("SELECT COUNT(*) FROM Orders WHERE order_status='Delayed'").fetchone()[0],
+        "total_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID = ?",(agent_id,)).fetchone()[0],
+        "completed_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status IN ('Delivered on time', 'Delivered delayed')",(agent_id,)).fetchone()[0],
+        "canceled_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status='Canceled'",(agent_id,)).fetchone()[0],
+        "delayed_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status='Delivered delayed'",(agent_id,)).fetchone()[0],
     }
     performance_data = {
         "time_labels": ["Jan", "Feb", "Mar", "Apr"],
@@ -4498,11 +4718,15 @@ def performance():
         "failed": [5, 10, 7, 8],
     }
     conn.close()
-    return render_template("performance.html", stats=stats, performance_data=performance_data)
+    return render_template("performance.html", stats=stats, performance_data=performance_data,agent_id=agent_id)
 
 
 @app.route('/notifications', methods=['POST'])
 def add_notification():
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Add a new notification for a delivery agent.
     """
@@ -4529,6 +4753,10 @@ def add_notification():
 
 @app.route('/notifications/<int:agent_id>', methods=['GET'])
 def fetch_notifications(agent_id):
+    if not is_delivery_boy():
+        flash('Access denied. Delivery agent only.', 'error')
+        return redirect(url_for('signin'))
+    
     """
     Fetch notifications for a specific delivery agent.
     """
@@ -4547,13 +4775,12 @@ def fetch_notifications(agent_id):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route("/update_agent_status", methods=["POST"])
-def update_agent_status():
+@app.route("/update_agent_status/<int:agent_id>", methods=["POST"])
+def update_agent_status(agent_id):
     """
     Update the status of a delivery agent.
     """
     try:
-        agent_id = request.json.get("id")
         new_status = request.json.get("status")
 
         conn = get_db_connection()

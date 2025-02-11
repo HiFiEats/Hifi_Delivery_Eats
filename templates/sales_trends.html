@@ -6,11 +6,17 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sales_trends.css') }}">
 {% endblock %}
 {% block content %}
-<div class="main">
+<div class="mainly">
     <h1>Sales Trends</h1>
 
     {% if plot_url %}
-    <img src="data:image/png;base64,{{ plot_url }}" alt="Sales Trends Chart">
+    <img src="data:image/png;base64,{{ plot_url }}" alt="Sales Trends Chart" style="max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;">
     {% else %}
     <p>No chart available.</p>
     {% endif %}
