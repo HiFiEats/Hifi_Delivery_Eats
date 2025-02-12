@@ -70,8 +70,8 @@
                             <p><strong>Total Price:</strong> ${{ order['total_price'] }}</p>
                             <p><strong>Location:</strong> {{ order['delivery_location'] }}</p>
                             <p><strong>Status:</strong>
-                               <span class="status {{ order['order_status']|lower|replace(' ', '-') }}">
-                                   {{ order['order_status'] }}
+                               <span class="status {{ order['Status']|lower|replace(' ', '-') }}">
+                                   {{ order['Status'] }}
                                </span>
                             </p>
                             <p><strong>Order Date:</strong> {{ order['order_date'] }}</p>
@@ -79,10 +79,10 @@
                             <div class="order-actions">
                                 <form action="/update_status/{{ order['order_id'] }}" method="post">
                                     <select name="new_status">
-                                        <option value="New">New</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Delayed">Delayed</option>
+                                        <option value="Assigned">New</option>
+                                        <option value="Out for Delivery">In Progress</option>
+                                        <option value="Delivered on time">Completed</option>
+                                        <option value="Delivered delayed">Delayed</option>
                                         <option value="Canceled">Canceled</option>
                                     </select>
                                     <button type="submit" class="btn update-btn">Update Status</button>

@@ -18,12 +18,51 @@ body {
   --success-color: #4CAF50;
   --warning-color: #FFC107;
   --error-color: #FF3D00;
-  --new-status: #FF6699;
-  --in-progress-status: #f96d32;
-  --completed-status: #4CAF50;
-  --delayed-status: #FFC107;
-  --canceled-status: #FF3366;
   --border-color: #ccc;
+}
+
+/* Status Variables */
+:root {
+  --new-status: #FF6699;
+  --out-for-delivery-status: #f96d32;
+  --delivered-on-time-status: #4CAF50;
+  --delivered-delayed-status: #FFC107;
+  --canceled-status: #ff0000;
+}
+
+/* Base status class */
+.status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+/* Status-specific classes */
+.status.assigned {
+  background-color: var(--new-status);
+  color: white;
+}
+
+.status.out-for-delivery {
+  background-color: var(--out-for-delivery-status);
+  color: white;
+}
+
+.status.delivered-on-time {
+  background-color: var(--delivered-on-time-status);
+  color: white;
+}
+
+.status.delivered-delayed {
+  background-color: var(--delivered-delayed-status);
+  color: black;
+}
+
+.status.canceled {
+  background-color: var(--canceled-status);
+  color: white;
 }
 
 * {

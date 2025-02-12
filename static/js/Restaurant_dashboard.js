@@ -17,9 +17,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const donutChart = new Chart(donutCtx, {
         type: 'doughnut',
         data: {
-            labels: ['Successful', 'Failed', 'Pending'],
+            labels: ['Positive', 'Negative', 'Neutral'],
             datasets: [{
-                data: [70, 20, 10],
+                data: [8, 2, 4],
                 backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
                 borderColor: ['#28a745', '#dc3545', '#ffc107'],
                 borderWidth: 1

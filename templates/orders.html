@@ -58,7 +58,7 @@
                         <td>{{ order.order_id }}</td>
                         <td>{{ order.customer_id }}</td>
                         <td>${{ order.total_price }}</td>
-                        <td style="white-space: nowrap;"><span class="status {{ order['order_status']|lower|replace(' ', '-') }}">{{ order['order_status'] }}</span></td>
+                        <td style="white-space: nowrap;"><span class="status {{ order['Status']|lower|replace(' ', '-') }}">{{ order['Status'] }}</span></td>
                         <td>{{ order.delivery_location }}</td>
                         <td>{{ order.order_date }}</td>
                         <td>{{ order.order_time }}</td>
@@ -67,10 +67,10 @@
                         <td>
                             <form action="/update_status/{{ order.order_id }}" method="post" style="display: inline;">
                                 <select name="new_status">
-                                    <option value="New">New</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="Delayed">Delayed</option>
+                                    <option value="Assigned">New</option>
+                                    <option value="Out for Delivery">In Progress</option>
+                                    <option value="Delivered on time">Completed</option>
+                                    <option value="Delivered delayed">Delayed</option>
                                     <option value="Canceled">Canceled</option>
                                 </select>
                                 <button type="submit" class="btn update-btn">Update</button>
