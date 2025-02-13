@@ -119,10 +119,9 @@
 
     <script>
         document.getElementById('agent_status').addEventListener('change', function() {
-            const agentStatus = this.value;
-            const agentId = 1; // Replace with actual agent ID from session or db
-
-            fetch('/update_agent_status', {
+            const agentStatus = this.value; 
+            const agentId = '{{ agent_id }}';
+            fetch(`/update_agent_status/${agentId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

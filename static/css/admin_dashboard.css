@@ -8,34 +8,34 @@
 body, html {
     width: 100%;
     height: 100%;
-    background: linear-gradient(to top, #ffbbbb, #fcffca);
+    background: linear-gradient(to top, #da8b8b, #f0f59e);
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
 }
 
 .navbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #fecfef;
-    padding: 10px 50px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 10px 20px;
+    background-color: #333;
+    color: white;
 }
 
-.logo img {
-    width: 50px;
+.navbar .logo img {
     height: 50px;
-    border-radius: 10px;
 }
 
-.nav-links a {
+.navbar .nav-links a {
+    color: white;
     text-decoration: none;
-    color: #333;
     margin-left: 20px;
-    font-size: 16px;
-    transition: color 0.3s;
-}
-
-.nav-links a:hover {
-    color: #f68a8a;
+    font-weight: bold;
 }
 
 .container {
@@ -44,21 +44,25 @@ body, html {
     align-items: center;
     justify-content: center;
     height: 80vh;
-    
+    padding: 20px;
 }
 
 h1 {
     font-size: 36px;
     margin-bottom: 20px;
+    text-align: center;
+    color: #333;
 }
 
 p {
     font-size: 18px;
     color: #555;
+    text-align: center;
+    color: #666;
 }
 
 .btn {
-    background-color: #2f72f7;
+    background-color: #4CAF50;
     color: white;
     padding: 10px 20px;
     text-decoration: none;
@@ -68,14 +72,15 @@ p {
     cursor: pointer;
     transition: background 0.3s ease;
     margin-bottom: 20px;
+    text-align: center;
 }
 
 .btn:hover {
-    background-color: #ffdfc0;
+    background-color: #45a049;
 }
 
 .btn-small {
-    background-color: #f7902f;
+    background-color: #4CAF50;
     color: white;
     padding: 5px 10px;
     text-decoration: none;
@@ -87,23 +92,33 @@ p {
 }
 
 .btn-small:hover {
-    background-color: #ffdfc0;
+    background-color: #45a049;
 }
 
 table {
     width: 100%;
-    max-width: 800px;
+    max-width: 851px;
     border-collapse: collapse;
     margin-top: 20px;
+    width: 100%;
+    background: white;
+    border-collapse: collapse;
+    margin: 20px 0;
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
 }
 
 th, td {
     padding: 10px;
     text-align: left;
-    border-bottom: 1px solid #313b7e;
+    border-bottom: 1px solid #ddd;
 }
 
 th {
-    background-color: #f68a8a;
-    color: white;
+    background-color: #f2f2f2;
+}
+
+tr:hover {
+    background-color: #f5f5f5;
 }

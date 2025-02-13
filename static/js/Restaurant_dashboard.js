@@ -68,10 +68,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const ipoPerformanceChart = new Chart(ipoPerformanceCtx, {
         type: 'bar',
         data: {
-            labels: ['IPO1', 'IPO2', 'IPO3', 'IPO4'],
+            labels: ['Agent 3', 'Agent 4', 'Agent 5', 'Agent 6'],
             datasets: [{
                 label: 'Performance',
-                data: [90, 65, 75, 85],
+                data: [36, 37, 38, 35],
                 backgroundColor: '#ffc107',
                 borderColor: '#ffc107',
                 borderWidth: 1
@@ -94,10 +94,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const volumeChart = new Chart(volumeCtx, {
         type: 'radar',
         data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+            labels: [1, 2, 3, 4, 5],
             datasets: [{
                 label: 'Volume',
-                data: [200, 150, 180, 220, 250],
+                data: [2, 1, 2, 3, 9],
                 backgroundColor: 'rgba(0, 123, 255, 0.2)',
                 borderColor: 'rgba(0, 123, 255, 1)',
                 borderWidth: 1

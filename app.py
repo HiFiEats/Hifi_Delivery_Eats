@@ -4779,6 +4779,7 @@ def update_agent_status(agent_id):
     """
     try:
         new_status = request.json.get("status")
+        print(new_status)
 
         conn = get_db_connection()
         cursor = conn.cursor()
