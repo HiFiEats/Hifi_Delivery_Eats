@@ -17,9 +17,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const donutChart = new Chart(donutCtx, {
         type: 'doughnut',
         data: {
-            labels: ['Positive', 'Negative', 'Neutral'],
+            labels: ['Successful', 'Failed', 'Pending'],
             datasets: [{
-                data: [8, 2, 4],
+                data: [70, 20, 10],
                 backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
                 borderColor: ['#28a745', '#dc3545', '#ffc107'],
                 borderWidth: 1
@@ -68,10 +68,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const ipoPerformanceChart = new Chart(ipoPerformanceCtx, {
         type: 'bar',
         data: {
-            labels: ['Agent 3', 'Agent 4', 'Agent 5', 'Agent 6'],
+            labels: ['IPO1', 'IPO2', 'IPO3', 'IPO4'],
             datasets: [{
                 label: 'Performance',
-                data: [36, 37, 38, 35],
+                data: [90, 65, 75, 85],
                 backgroundColor: '#ffc107',
                 borderColor: '#ffc107',
                 borderWidth: 1
@@ -94,10 +94,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const volumeChart = new Chart(volumeCtx, {
         type: 'radar',
         data: {
-            labels: [1, 2, 3, 4, 5],
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
             datasets: [{
                 label: 'Volume',
-                data: [2, 1, 2, 3, 9],
+                data: [200, 150, 180, 220, 250],
                 backgroundColor: 'rgba(0, 123, 255, 0.2)',
                 borderColor: 'rgba(0, 123, 255, 1)',
                 borderWidth: 1

@@ -7,9 +7,8 @@
 {% endblock %}
 {% block content %}
 <div class="header">
-    <div class="header-content">
-    <button class="back-btn" onclick="window.history.back()">←</button><span class="order-title"><b>Agent Details</b></span>
-</div>
+    <button class="back-btn">←</button>
+    <h1>Agent Details</h1>
 </div>
 
 <div class="agent-details">
@@ -22,7 +21,7 @@
         <br>
         <a href="{{url_for('performance_metrics')}}" class="view-metrics">View Agent Metrics</a>
     </div>
-    <div class="total-orders" style="margin: 10px 50px;">
+    <div class="total-orders">
         <div>{{ total_orders }}</div>
         <span>Total Orders</span>
     </div>

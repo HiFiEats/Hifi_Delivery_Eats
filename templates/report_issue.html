@@ -28,13 +28,12 @@
                     <li><a href="/route/{{ agent_id }}"><i class="material-icons">map</i> Route</a></li>
                     <li><a href="/performance/{{ agent_id }}"><i class="material-icons">assessment</i> Performance</a></li>
                     <li><a href="/report_issue/{{ agent_id }}"><i class="material-icons">report_problem</i> Report Issue</a></li>
-                    <li><a href="/signin"><i class="material-icons">logout</i> Log Out</a></li>
                 </ul>
             
             </nav>
             <section class="report-issue">
                 <h2>Report an Issue</h2>
-                <form action="/report_issue/{{ agent_id }}" method="post">
+                <form action="/report_issue" method="post">
                     <div class="form-group">
                         <label for="order_id">Order ID:</label>
                         <input type="text" id="order_id" name="order_id" required>

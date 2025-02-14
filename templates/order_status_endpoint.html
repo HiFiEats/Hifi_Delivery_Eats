@@ -8,9 +8,7 @@
 
 {% block content %}
 <div class="header">
-    <div class="header-content">
-    <button class="back-button" onclick="window.history.back()">← </button><span class="order-title"><b>Order #{{ order.order_id }} Details</b></span>
-    </div>
+    <button class="back-button" onclick="window.history.back()">← Order #{{ order.order_id }} Details</button>
 </div>
 
 <div class="order-details" id="orderDetails">

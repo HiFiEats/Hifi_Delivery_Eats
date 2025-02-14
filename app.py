@@ -1770,7 +1770,7 @@ def generate_feedback_analysis(db_path):
     sentiment_counts = feedback_df['sentiment_category'].value_counts()
     sentiment_pie_chart = go.Figure(data=[
         go.Pie(labels=sentiment_counts.index, values=sentiment_counts.values, 
-               marker=dict(colors=['#FF6961', '#FFFFC5', '#90EE90']), 
+               marker=dict(colors=['lightgreen', 'lightcoral', 'lightgrey']), 
                hoverinfo='label+percent', textinfo='value', textfont_size=20)
     ])
     sentiment_pie_chart.update_layout(title='Distribution of Sentiments in Feedback')
@@ -2430,7 +2430,7 @@ def assign_agent(order_id, agent_id):
             # Update Delivery_Agents table
             cur.execute("""
                 UPDATE Delivery_Agents
-                SET status = 'in delivery'
+                SET status = 'on delivery'
                 WHERE id = ?;
             """, (agent_id,))
 
@@ -2929,7 +2929,6 @@ def get_monthly_performance(agent_id, selected_month, thresholds):
         ORDER BY delivery_date;
     '''
     rows = conn.execute(query, (agent_id, selected_month)).fetchall()
-
     conn.close()
 
     dates = []
@@ -3510,7 +3509,7 @@ def staff_details(agent_id):
         return "Staff member not found", 404
     
     # Calculate service years
-    created_date = datetime.strptime(staff['created_at'], '%Y-%m-%d %H:%M:%S')
+    created_date = datetime.strptime(staff['created_at'], '%Y-%m-%d %H:%M:%S.%f')
     years_of_service = relativedelta(datetime.now(), created_date).years
     
     # Get total orders
@@ -3740,6 +3739,9 @@ def modify_menu_item(item_id):
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
+    if not is_admin():
+        flash('Access denied. Admins only.', 'error')
+        return redirect(url_for('signin'))
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -4593,7 +4595,7 @@ def delivery_agent_dashboard(agent_id):
     Render the dashboard page with orders and statistics.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT o.*, d.Status FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ?  ORDER BY order_id DESC", (agent_id,)).fetchall()
+    orders = conn.execute("SELECT o.* FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ?  ORDER BY order_id DESC", (agent_id,)).fetchall()
     stats = {
         "total_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID = ?",(agent_id,)).fetchone()[0],
         "completed_orders": conn.execute("SELECT COUNT(*) FROM Delivery WHERE Delivery_Agent_ID= ? AND Status IN ('Delivered on time', 'Delivered delayed')",(agent_id,)).fetchone()[0],
@@ -4614,7 +4616,7 @@ def orders(agent_id):
     Render the orders page.
     """
     conn = get_db_connection()
-    orders = conn.execute("SELECT o.*,d.Status FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ? ORDER BY order_id DESC", (agent_id,)).fetchall()
+    orders = conn.execute("SELECT o.* FROM Orders o JOIN Delivery d ON d.Order_ID = o.order_id WHERE d.Delivery_Agent_ID = ? ORDER BY order_id DESC", (agent_id,)).fetchall()
     conn.close()
     return render_template("orders.html", orders=orders,agent_id=agent_id)
 
@@ -4622,23 +4624,27 @@ def orders(agent_id):
 @app.route("/update_status/<int:order_id>", methods=["POST"])
 def update_status(order_id):
     new_status = request.form["new_status"]
-    print(new_status)
     conn = get_db_connection()
     agent_id = conn.execute("SELECT Delivery_Agent_ID FROM Delivery WHERE Order_ID = ?", (order_id,)).fetchone()[0]
 
-    if new_status == "Assigned":
+    if new_status == "New":
         status_order = "Order Confirmed"
-    elif new_status == "Out for Delivery":
+        status_delivery = "Assigned"
+    elif new_status == "In Progress":
         status_order = "Out for Delivery"
-    elif new_status == "Delivered on time":
+        status_delivery = "Out for Delivery"
+    elif new_status == "Completed":
         status_order = "Completed"
-    elif new_status == "Delivered delayed":
+        status_delivery = "Delivered on time"
+    elif new_status == "Delayed":
         status_order = "Completed"
+        status_delivery = "Delviered Delayed"
     elif new_status == "Canceled":
         status_order = "Canceled"
+        status_delivery = "Canceled"
 
     conn.execute("UPDATE Orders SET order_status = ? WHERE order_id = ?", (status_order, order_id))
-    conn.execute("UPDATE Delivery SET status = ? WHERE order_id = ?", (new_status, order_id))
+    conn.execute("UPDATE Delivery SET status = ? WHERE order_id = ?", (status_delivery, order_id))
     conn.commit()
     conn.close()
     return redirect(url_for("delivery_agent_dashboard",agent_id=agent_id))
@@ -4779,7 +4785,6 @@ def update_agent_status(agent_id):
     """
     try:
         new_status = request.json.get("status")
-        print(new_status)
 
         conn = get_db_connection()
         cursor = conn.cursor()

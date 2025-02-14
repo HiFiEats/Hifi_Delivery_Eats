@@ -51,28 +51,6 @@ body, html {
     color: #f68a8a;
 }
 
-/* Navbar links styled as buttons */
-.navbar a {
-    text-decoration: none;
-    color: black;
-    margin: 0 10px;
-    font-weight: bold;
-    padding: 10px 20px; /* Button-like padding */
-    border: 2px solid #ff6f61; /* Border for buttons */
-    border-radius: 5px; /* Rounded corners for a button look */
-    background-color: #FFD3D3; /* Light background color for buttons */
-    transition: all 0.3s ease; /* Transition effect for smooth hover */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Shadow for 3D effect */
-}
-
-/* Hover effect for navbar links */
-.navbar a:hover {
-    background-color: #ff6f61; /* Change background on hover */
-    color: white; /* Change text color on hover */
-    transform: scale(1.1); /* Slightly enlarge the button */
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); /* Stronger shadow on hover for 3D effect */
-}
-
 /* Background Gradient and Image */
 .main-section {
     position: relative;
